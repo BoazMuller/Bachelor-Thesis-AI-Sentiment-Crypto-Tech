@@ -31,7 +31,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT_FOLDER = PROJECT_ROOT / "data" / "interim"
 DEFAULT_OUTPUT_FILE = (
-    PROJECT_ROOT / "data" / "processed" / "reddit" / "reddit_dataset.csv"
+    PROJECT_ROOT / "data" / "interim" / "reddit_merged.csv"
 )
 
 PROVENANCE_COLUMNS = ("source_file", "source_path")
