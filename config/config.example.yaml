@@ -1,0 +1,18 @@
+project:
+  name: thesis
+  random_seed: 42
+
+paths:
+  raw_data: data/raw
+  external_data: data/external
+  interim_data: data/interim
+  processed_data: data/processed
+  figures: results/figures
+  tables: results/tables
+  models: results/models
+
+analysis:
+  target_variable: null
+  entity_id: null
+  time_variable: null
+

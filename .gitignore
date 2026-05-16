@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pycache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Data: keep folder structure, not datasets
+data/raw/*
+data/external/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+!data/README.md
+
+# Generated outputs
+results/figures/*
+results/tables/*
+results/models/*
+results/reports/*
+!results/**/.gitkeep
+!results/README.md
+
+# Logs and temporary files
+logs/
+tmp/
+*.log
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
