@@ -1,6 +1,7 @@
 pyproject.toml
 src/thesis/__init__.py
 src/thesis/paths.py
+src/thesis/sentiment.py
 src/thesis/settings.py
 src/thesis.egg-info/PKG-INFO
 src/thesis.egg-info/SOURCES.txt
@@ -8,3 +9,4 @@ src/thesis.egg-info/dependency_links.txt
 src/thesis.egg-info/requires.txt
 src/thesis.egg-info/top_level.txt
 tests/test_paths.py
+tests/test_sentiment.py

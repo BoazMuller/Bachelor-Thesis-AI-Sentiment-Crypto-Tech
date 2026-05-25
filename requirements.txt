@@ -15,4 +15,5 @@ seaborn
 statsmodels
 torch
 transformers
+yfinance
 zstandard
