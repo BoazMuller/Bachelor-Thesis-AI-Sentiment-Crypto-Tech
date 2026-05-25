@@ -4,6 +4,7 @@ ipykernel
 jupyterlab
 matplotlib
 numpy
+matplotlib
 pandas
 pyarrow
 pytest
@@ -12,4 +13,6 @@ scikit-learn
 scipy
 seaborn
 statsmodels
+torch
+transformers
 zstandard
