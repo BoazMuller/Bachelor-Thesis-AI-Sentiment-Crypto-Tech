@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Econometrics and data science thesis code"
 requires-python = ">=3.9"
 dependencies = [
+    "arch",
     "matplotlib",
     "numpy",
     "pandas",
@@ -23,4 +24,3 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

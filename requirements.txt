@@ -1,3 +1,4 @@
+arch
 db-dtypes
 google-cloud-bigquery
 ipykernel

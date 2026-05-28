@@ -356,3 +356,79 @@ article_day  n_rows  n_with_page_title
   observations to match the equity-market trading-day calendar.
 - The Reddit keyword filter uses substring matching, so short terms may require
   manual inspection or stricter regex matching in a robustness check.
+
+## Data Inventory And Validation Checks
+
+The processed time-series dataset is validated by:
+
+```bash
+python scripts/check_time_series_data.py
+```
+
+This script reads `data/processed/combined_time_series.csv` and writes the
+thesis-facing data inventory to `results/tables/01_data_inventory/` and model
+readiness checks to `results/tables/data_validation/`.
+
+| Output | Contents |
+| --- | --- |
+| `01_data_inventory/table_01_data_sources_definitions_transformations_availability.csv` | Table 1: variable, symbol, source, raw/transformed frequency, transformation, expected sign or role, availability, observation counts, units, missing-value treatment, and notes. |
+| `01_data_inventory/table_01_data_sources_definitions_transformations_availability.md` | Markdown version of Table 1 for quick inspection. |
+| `01_data_inventory/table_01_data_sources_definitions_transformations_availability.tex` | LaTeX `longtable` version of Table 1 for thesis inclusion. |
+| `date_integrity_checks.csv` | Date range, duplicate dates, sort order, weekend rows, and trading-calendar gaps. |
+| `missing_values.csv` | Missing-value counts and percentages by variable. |
+| `missing_spans.csv` | Contiguous missing-date intervals by variable. |
+| `descriptive_statistics.csv` | Count, mean, standard deviation, min/max, and distribution percentiles for numeric variables. |
+| `outliers.csv` | Outlier counts using 3x-IQR and robust MAD-based thresholds, plus min/max dates and values. |
+| `correlation_pearson.csv` | Pearson correlation matrix for numeric variables. |
+| `correlation_spearman.csv` | Spearman rank correlation matrix for numeric variables. |
+| `stationarity_tests.csv` | ADF and KPSS checks for returns, controls, sentiment, and expectation variables. |
+| `autocorrelation_ljungbox.csv` | Ljung-Box serial-correlation tests at lags 5, 10, and 20. |
+| `arch_lm_tests.csv` | ARCH-LM heteroskedasticity tests for log-return variables. |
+| `var_stability_checks.csv` | BIC-selected VAR lag orders and characteristic-root stability checks for selected variable groups. |
+
+Current validation run on `combined_time_series.csv`:
+
+- The dataset has 502 trading-day rows and 22 columns from `2024-04-01`
+  through `2026-03-31`.
+- Dates are sorted, unique, and contain no weekend rows. There are 114
+  calendar gaps longer than one day, which is expected because the final
+  dataset follows the equity-market trading calendar.
+- Missing values are limited to:
+  - first log-return observation for each return series;
+  - `kalshi_before_2030` from `2024-04-01` through `2024-04-17`;
+  - `sentiment_gdelt_sentiment_compound` from `2025-06-17` through
+    `2025-07-01`.
+- Return variables pass the stationarity checks: ADF rejects a unit root and
+  KPSS does not reject level stationarity for the return series.
+- Kalshi does not reject a unit root in the ADF test and rejects level
+  stationarity in KPSS, so it should be treated carefully as a persistent
+  expectation state variable. Metaculus also does not reject a unit root in ADF.
+- Ljung-Box tests indicate serial correlation in NASDAQ-100, NVIDIA, and
+  S&P 500 returns, and weaker longer-lag serial correlation in Bitcoin returns.
+  This supports BIC-based ARMA lag selection before EGARCH estimation.
+- ARCH-LM tests find ARCH effects in Bitcoin, NASDAQ-100, S&P 500, and DXY
+  returns, with short-lag evidence for NVIDIA. This supports the EGARCH
+  modelling step. Alphabet and Microsoft show weaker ARCH evidence in the
+  current sample.
+- The VAR stability check selected VAR(0) by BIC for the return panels, so
+  there are no characteristic roots to evaluate for those panels. The controls
+  panel selected VAR(1) and was stable, with roots outside the unit circle.
+- Outlier diagnostics flag large market moves and control-variable spikes,
+  especially around high-volatility dates. These should be inspected and
+  documented, not automatically removed, because they may represent genuine
+  market events relevant for volatility modelling.
+
+Additional checks to revisit before final estimation:
+
+- Confirm whether the early Kalshi missing period should be dropped from
+  model-ready samples or handled with a documented pre-sample rule.
+- Confirm that the GDELT gap remains an upstream data-coverage issue and not a
+  processing error.
+- Inspect the largest return outliers against known market/news events before
+  deciding whether robustness specifications need winsorization.
+- Re-run the validation script after constructing the two-source AIS,
+  expectation-adjusted AIS, EGARCH conditional volatilities, and TVP-VAR input
+  panels.
+- For connectedness models, repeat stationarity, missingness, outlier, and VAR
+  stability checks on the final conditional-volatility inputs, not only on raw
+  returns.
