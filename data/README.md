@@ -432,3 +432,61 @@ Additional checks to revisit before final estimation:
 - For connectedness models, repeat stationarity, missingness, outlier, and VAR
   stability checks on the final conditional-volatility inputs, not only on raw
   returns.
+
+## Model Artifacts And Table Dependencies
+
+ARMAX-EGARCHX input is prepared by:
+
+```bash
+python scripts/preparation/prepare_egarch_inputs.py
+```
+
+The R ARMAX-EGARCHX model writes:
+
+- `results/models/armax_egarchx/armax_egarchx_coefficients.csv`
+- `results/models/armax_egarchx/armax_egarchx_diagnostics.csv`
+- `results/models/armax_egarchx/armax_egarchx_lag_selection.csv`
+- `results/models/armax_egarchx/armax_egarchx_conditional_volatility.csv`
+
+These files generate Tables 5-6.
+
+TVP-VAR volatility inputs are prepared by:
+
+```bash
+python scripts/preparation/prepare_tvpvar_inputs.py
+Rscript r/modeling/run_egarch_volatility.R
+```
+
+The R EGARCH volatility script fits plain EGARCH(1,1) models with no ARMA terms
+and no sentiment variables. It writes:
+
+- `results/models/tvpvar_connectedness/conditional_volatility_panel.csv`
+- `results/models/tvpvar_connectedness/egarch_volatility_long.csv`
+- `results/models/tvpvar_connectedness/egarch_volatility_coefficients.csv`
+- `results/models/tvpvar_connectedness/egarch_volatility_diagnostics.csv`
+
+These files generate Tables 7-8.
+
+TVP-VAR lag order is selected by BIC from the conditional-volatility systems:
+
+```bash
+python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-only
+```
+
+This writes `results/models/tvpvar_connectedness/tvpvar_lag_selection.csv` and
+Table 10. The selected lags are then used by:
+
+```bash
+python scripts/modeling/run_tvpvar_connectedness_models.py
+```
+
+The TVP-VAR outputs are written under:
+
+- `results/models/tvpvar_connectedness/benchmark_h10/`
+- `results/models/tvpvar_connectedness/benchmark_h100/`
+- `results/models/tvpvar_connectedness/ai_equity_h10/`
+- `results/models/tvpvar_connectedness/ai_equity_h100/`
+
+These outputs generate Tables 9-13 and
+`results/models/tvpvar_connectedness/connectedness_regression_dataset.csv`,
+which is the input for Tables 25-29.

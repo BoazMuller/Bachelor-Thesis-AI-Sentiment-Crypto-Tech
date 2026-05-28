@@ -25,7 +25,25 @@ Scripts should import reusable functions from `code/src/thesis/` where possible.
 - `cleaning/prepare_roberta_text_input.py`: prepares deduplicated text for RoBERTa.
 - `preparation/build_combined_time_series.py`: builds the processed thesis time series.
 - `preparation/prepare_egarch_inputs.py`: writes ARMAX-EGARCHX inputs.
-- `preparation/prepare_tvpvar_inputs.py`: writes first-stage return-panel inputs.
+- `preparation/prepare_tvpvar_inputs.py`: writes return-panel inputs for plain EGARCH(1,1) volatility extraction.
 - `validation/check_time_series_data.py`: exports data validation tables.
 - `modeling/run_roberta_sentiment.py`: runs chunked RoBERTa sentiment inference.
+- `modeling/run_tvpvar_connectedness_models.py`: runs TVP-VAR connectedness systems using BIC-selected lags.
+- `reporting/make_armax_egarchx_model_tables.py`: generates Tables 5-6 from ARMAX-EGARCHX outputs.
+- `reporting/make_tvpvar_connectedness_tables.py`: generates Tables 7-13, TVP-VAR BIC lag selection, and the connectedness regression dataset.
 - `reporting/make_thesis_tables.py`: generates Python-buildable thesis tables.
+
+## Model workflow order
+
+```bash
+python scripts/preparation/prepare_egarch_inputs.py
+Rscript r/modeling/run_armax_egarchx.R
+python scripts/reporting/make_armax_egarchx_model_tables.py
+
+python scripts/preparation/prepare_tvpvar_inputs.py
+Rscript r/modeling/run_egarch_volatility.R
+python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-only
+python scripts/modeling/run_tvpvar_connectedness_models.py
+python scripts/reporting/make_tvpvar_connectedness_tables.py
+python scripts/reporting/make_spillover_regression_tables.py
+```

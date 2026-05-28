@@ -39,6 +39,34 @@ This repository is a starting point for an econometrics and data science thesis.
 5. Save generated figures and tables to `results/figures/` and `results/tables/`.
 6. Keep manuscript text in `thesis/`.
 
+## Reproducible Empirical Pipeline
+
+Run commands from the project root after activating the Python environment.
+Collection and RoBERTa inference are expensive and only need to be rerun when
+their inputs change.
+
+```bash
+python scripts/preparation/build_combined_time_series.py
+python scripts/preparation/prepare_egarch_inputs.py
+python scripts/preparation/prepare_tvpvar_inputs.py
+
+Rscript r/modeling/run_armax_egarchx.R
+python scripts/reporting/make_armax_egarchx_model_tables.py
+
+Rscript r/modeling/run_egarch_volatility.R
+python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-only
+python scripts/modeling/run_tvpvar_connectedness_models.py
+python scripts/reporting/make_tvpvar_connectedness_tables.py
+
+python scripts/reporting/make_spillover_regression_tables.py
+```
+
+The ARMAX-EGARCHX stage uses BIC-selected ARMA mean lags, EGARCH(1,1),
+Student-t innovations, and lagged AI sentiment in both the mean and variance
+equations. The TVP-VAR stage uses plain EGARCH(1,1) conditional volatilities
+with no ARMA terms and no sentiment variables; TVP-VAR lag order is selected by
+BIC separately for each volatility system.
+
 ## Setup
 
 Create and activate a virtual environment:

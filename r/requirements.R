@@ -2,6 +2,8 @@ required_packages <- c(
   "ConnectednessApproach",
   "dplyr",
   "readr",
+  "rugarch",
+  "tibble",
   "tidyr",
   "xts",
   "zoo"

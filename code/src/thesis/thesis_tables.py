@@ -20,6 +20,12 @@ from thesis.tables.common import (
     residualize_series,
 )
 from thesis.tables.data_inventory import table_01_data_inventory
+from thesis.tables.armax_egarchx import (
+    table_05_armax_egarchx_estimation_results,
+    table_06_post_estimation_diagnostics,
+    table_07_egarch_volatility_extraction_summary,
+    table_08_conditional_volatility_descriptives,
+)
 from thesis.tables.egarch_eda import (
     lead_lag_correlations,
     make_egarch_eda_figures,
@@ -42,4 +48,14 @@ from thesis.tables.sentiment_pca import (
     table_16_sentiment_source_correlation_matrix,
     table_17_pca_results,
     table_18_ais_construction_validation,
+)
+from thesis.tables.tvpvar_connectedness import (
+    build_connectedness_regression_dataset,
+    selected_lags,
+    table_09_tvpvar_system_definition,
+    table_10_tvpvar_lag_selection,
+    table_11_average_connectedness,
+    table_12_average_pairwise_connectedness_matrix,
+    table_13_robustness_connectedness,
+    tvpvar_lag_selection,
 )
