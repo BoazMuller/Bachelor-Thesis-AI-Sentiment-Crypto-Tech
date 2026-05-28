@@ -1,11 +1,27 @@
 args <- commandArgs(trailingOnly = TRUE)
 
+if ("--help" %in% args || "-h" %in% args) {
+  cat(
+    paste(
+      "Usage:",
+      "Rscript r/modeling/run_tvpvar_connectedness.R <input_csv> <output_dir> [nlag] [nfore] [columns_csv]",
+      "",
+      "Runs ConnectednessApproach TVP-VAR on a complete volatility panel.",
+      "When columns_csv is supplied, only those comma-separated variables",
+      "plus the date column are used.",
+      sep = "\n"
+    ),
+    "\n"
+  )
+  quit(status = 0)
+}
+
 if (length(args) < 2) {
   stop(
     paste(
       "Usage:",
       "Rscript r/modeling/run_tvpvar_connectedness.R",
-      "<input_csv> <output_dir> [nlag] [nfore]",
+      "<input_csv> <output_dir> [nlag] [nfore] [columns_csv]",
       sep = " "
     )
   )
@@ -17,6 +33,11 @@ input_csv <- args[[1]]
 output_dir <- args[[2]]
 nlag <- ifelse(length(args) >= 3, as.integer(args[[3]]), 1L)
 nfore <- ifelse(length(args) >= 4, as.integer(args[[4]]), 10L)
+selected_columns <- if (length(args) >= 5) {
+  trimws(strsplit(args[[5]], ",", fixed = TRUE)[[1]])
+} else {
+  character(0)
+}
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -24,6 +45,15 @@ raw_data <- readr::read_csv(input_csv, show_col_types = FALSE)
 
 if (!("date" %in% names(raw_data))) {
   stop("Input CSV must contain a 'date' column.")
+}
+
+if (length(selected_columns) > 0) {
+  missing_columns <- setdiff(selected_columns, names(raw_data))
+  if (length(missing_columns) > 0) {
+    stop("Input CSV is missing selected columns: ", paste(missing_columns, collapse = ", "))
+  }
+  raw_data <- raw_data |>
+    dplyr::select(date, dplyr::all_of(selected_columns))
 }
 
 dates <- as.Date(raw_data$date)

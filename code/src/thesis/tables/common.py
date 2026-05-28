@@ -40,6 +40,7 @@ ROBUST_CONTROLS = BASELINE_CONTROLS + [
 SOURCE_SENTIMENT_COLUMNS = [GDELT_SENTIMENT, REDDIT_SENTIMENT]
 
 
+@dataclass(frozen=True)
 class PCAConstruction:
     scores: pd.Series
     loadings: pd.Series
