@@ -4,7 +4,7 @@ if (length(args) < 2) {
   stop(
     paste(
       "Usage:",
-      "Rscript r/run_tvpvar_connectedness.R",
+      "Rscript r/modeling/run_tvpvar_connectedness.R",
       "<input_csv> <output_dir> [nlag] [nfore]",
       sep = " "
     )

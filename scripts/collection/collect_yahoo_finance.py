@@ -4,8 +4,8 @@ Collect daily market data from Yahoo Finance.
 The default date range is inclusive: 2024-04-01 through 2026-03-31.
 
 Usage:
-    python scripts/collect_yahoo_finance.py
-    python scripts/collect_yahoo_finance.py --force
+    python scripts/collection/collect_yahoo_finance.py
+    python scripts/collection/collect_yahoo_finance.py --force
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from typing import Any
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = PROJECT_ROOT / "code" / "src"
 sys.path.insert(0, str(SRC_DIR))
 

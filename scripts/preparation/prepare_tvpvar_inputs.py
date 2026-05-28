@@ -9,12 +9,13 @@ import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 
 from thesis.paths import MODELS_DIR, PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
 from thesis.table_output import write_dataframe  # noqa: E402
-from thesis.thesis_tables import prepare_tvpvar_return_input, read_daily_time_series  # noqa: E402
+from thesis.tables.common import read_daily_time_series  # noqa: E402
+from thesis.tables.model_inputs import prepare_tvpvar_return_input  # noqa: E402
 
 
 DEFAULT_INPUT_CSV = PROCESSED_DATA_DIR / "combined_time_series.csv"

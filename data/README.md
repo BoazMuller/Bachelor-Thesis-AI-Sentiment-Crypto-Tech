@@ -31,7 +31,7 @@ write code that reads from `data/raw/` and writes to `data/interim/` or
 
 ### GDELT
 
-Collected by `scripts/collect_gdelt_ai_headlines.py`.
+Collected by `scripts/collection/collect_gdelt_ai_headlines.py`.
 
 - Source table: public GDELT 2.1 GKG BigQuery table,
   `gdelt-bq.gdeltv2.gkg_partitioned`.
@@ -64,9 +64,9 @@ GDELT output columns kept:
 
 Reddit data comes from Pushshift submission dumps and is processed by:
 
-- `scripts/extract_target_subreddits.py`
-- `scripts/filter_pushshift_ai.py`
-- `scripts/CSV_merger.py`
+- `scripts/collection/extract_target_subreddits.py`
+- `scripts/collection/filter_pushshift_ai.py`
+- `scripts/cleaning/merge_reddit_submission_csvs.py`
 
 Subreddit selection:
 
@@ -140,8 +140,8 @@ case-insensitive substring matching.
 
 ## Sentiment Pipeline
 
-Prepared by `scripts/RoBERta data prep.py` and
-`scripts/run_roberta_sentiment.py`.
+Prepared by `scripts/cleaning/prepare_roberta_text_input.py` and
+`scripts/modeling/run_roberta_sentiment.py`.
 
 The text preparation script:
 
@@ -183,7 +183,7 @@ the text-level sentiment file for diagnostics, but are not merged into
 
 ### Yahoo Finance
 
-Collected by `scripts/collect_yahoo_finance.py`.
+Collected by `scripts/collection/collect_yahoo_finance.py`.
 
 - Date range: `2024-04-01` through `2026-03-31`.
 - Calendar: daily calendar, not only trading days.
@@ -204,7 +204,7 @@ Yahoo Finance columns:
 
 ### EPU And GPR
 
-Prepared in `scripts/finance_data_prep.py`.
+Prepared in `scripts/preparation/build_combined_time_series.py`.
 
 - EPU is read from `All_Daily_Policy_Data.csv`.
 - EPU date is constructed from `year`, `month`, and `day`.
@@ -215,7 +215,7 @@ Prepared in `scripts/finance_data_prep.py`.
 
 ### Kalshi
 
-Prepared in `scripts/finance_data_prep.py`.
+Prepared in `scripts/preparation/build_combined_time_series.py`.
 
 - Source file: `data/raw/kalshi/Kalshi Prices.csv`.
 - Source: Kalshi API.
@@ -223,14 +223,14 @@ Prepared in `scripts/finance_data_prep.py`.
 - The final dataset uses only the `Before 2030` contract price.
 - This becomes `kalshi_before_2030`.
 - Missing Kalshi values are filled on a daily calendar using the current
-  `FILL_METHOD` in `scripts/finance_data_prep.py`, which is currently `ffill`.
+  `FILL_METHOD` in `scripts/preparation/build_combined_time_series.py`, which is currently `ffill`.
 - Forward filling means missing days keep the most recently observed Kalshi
   price. Dates before the first observed `Before 2030` value remain missing.
 - After filling, Kalshi values are matched to the final trading-day calendar.
 
 ### Metaculus
 
-Prepared in `scripts/finance_data_prep.py`.
+Prepared in `scripts/preparation/build_combined_time_series.py`.
 
 - Source files:
   - `data/raw/metaculus/Metaculus_question_data.csv`
@@ -261,7 +261,7 @@ days_until_median = Median - Start Time
 
 ## Final Time-Series Dataset
 
-Created by `scripts/finance_data_prep.py` and saved to
+Created by `scripts/preparation/build_combined_time_series.py` and saved to
 `data/processed/combined_time_series.csv`.
 
 Main steps:
@@ -362,7 +362,7 @@ article_day  n_rows  n_with_page_title
 The processed time-series dataset is validated by:
 
 ```bash
-python scripts/check_time_series_data.py
+python scripts/validation/check_time_series_data.py
 ```
 
 This script reads `data/processed/combined_time_series.csv` and writes the

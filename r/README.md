@@ -28,7 +28,7 @@ Run the benchmark TVP-VAR connectedness model after Python has exported a
 complete volatility panel:
 
 ```bash
-Rscript r/run_tvpvar_connectedness.R \
+Rscript r/modeling/run_tvpvar_connectedness.R \
   data/processed/tvpvar_inputs/benchmark_volatility.csv \
   results/tables/tvpvar/benchmark_h10 \
   1 \

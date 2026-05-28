@@ -9,15 +9,14 @@ import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 
 from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
 from thesis.table_output import write_registered_table  # noqa: E402
-from thesis.thesis_tables import (  # noqa: E402
-    add_sentiment_measures,
+from thesis.tables.common import add_sentiment_measures, read_daily_time_series  # noqa: E402
+from thesis.tables.egarch_eda import (  # noqa: E402
     make_egarch_eda_figures,
-    read_daily_time_series,
     table_02_return_sentiment_descriptives,
     table_03_pre_estimation_diagnostics,
     table_04_arma_lag_order_selection,

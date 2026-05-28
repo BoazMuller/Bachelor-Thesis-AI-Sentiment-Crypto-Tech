@@ -11,13 +11,13 @@ from pathlib import Path
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 
 from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
 from thesis.table_output import write_registered_table  # noqa: E402
-from thesis.thesis_tables import (  # noqa: E402
-    read_daily_time_series,
+from thesis.tables.common import read_daily_time_series  # noqa: E402
+from thesis.tables.sentiment_pca import (  # noqa: E402
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,

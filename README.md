@@ -19,14 +19,21 @@ This repository is a starting point for an econometrics and data science thesis.
 ├── notebooks/            # Exploratory notebooks
 ├── references/           # Bibliography files and citation notes
 ├── results/              # Generated figures, tables, reports, models
-├── scripts/              # Command-line scripts and pipeline entry points
+├── scripts/              # Lifecycle command-line entry points
+│   ├── collection/       # Raw data collection
+│   ├── cleaning/         # Source-specific cleaning
+│   ├── preparation/      # Analysis/model input datasets
+│   ├── validation/       # Data and model-readiness checks
+│   ├── modeling/         # Python model runs
+│   └── reporting/        # Tables and figures
+├── r/                    # R setup and R model workflows
 └── thesis/               # Thesis manuscript files
 ```
 
 ## Recommended Workflow
 
 1. Put untouched source data in `data/raw/`.
-2. Write repeatable transformations in `code/src/thesis/` or `scripts/`.
+2. Put reusable logic in `code/src/thesis/` and thin workflow entry points in `scripts/`.
 3. Save cleaned analysis-ready datasets in `data/processed/`.
 4. Use notebooks for exploration, not as the only place where important transformations live.
 5. Save generated figures and tables to `results/figures/` and `results/tables/`.
@@ -57,4 +64,3 @@ pytest
 - Prefer scripted pipelines over manual spreadsheet edits.
 - Record package versions in `requirements.txt` or `environment.yml`.
 - Use fixed random seeds for simulations, train/test splits, bootstraps, and model estimation where appropriate.
-

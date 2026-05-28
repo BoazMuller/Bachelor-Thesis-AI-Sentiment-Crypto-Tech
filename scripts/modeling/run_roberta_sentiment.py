@@ -5,8 +5,8 @@ The default model is CardiffNLP's Twitter RoBERTa sentiment model, which returns
 negative, neutral, and positive probabilities for each text.
 
 Usage:
-    python scripts/run_roberta_sentiment.py
-    python scripts/run_roberta_sentiment.py --chunksize 500 --model-batch-size 16
+    python scripts/modeling/run_roberta_sentiment.py
+    python scripts/modeling/run_roberta_sentiment.py --chunksize 500 --model-batch-size 16
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = PROJECT_ROOT / "code" / "src"
 sys.path.insert(0, str(SRC_DIR))
 

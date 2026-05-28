@@ -40,8 +40,8 @@ Dependencies:
     pip install -r requirements.txt
 
 Usage:
-    python scripts/filter_pushshift_ai.py
-    python scripts/filter_pushshift_ai.py --input-folder data/interim/reddit/target_subreddits
+    python scripts/collection/filter_pushshift_ai.py
+    python scripts/collection/filter_pushshift_ai.py --input-folder data/interim/reddit/target_subreddits
 
 Author modification:
     Adapted and modified for this research project.
@@ -63,7 +63,7 @@ import zstandard
 # ============================================================
 # File settings
 # ============================================================
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 INPUT_FOLDER = PROJECT_ROOT / "data" / "interim" 
 OUTPUT_FOLDER = PROJECT_ROOT / "data" / "interim" 

@@ -35,8 +35,8 @@ Dependencies:
     pip install -r requirements.txt
 
 Usage:
-    python scripts/extract_target_subreddits.py
-    python scripts/extract_target_subreddits.py --input-folder /path/to/RS_dumps
+    python scripts/collection/extract_target_subreddits.py
+    python scripts/collection/extract_target_subreddits.py --input-folder /path/to/RS_dumps
 
 Author modification:
     Adapted and modified for this research project.
@@ -56,7 +56,7 @@ import zstandard
 # File settings
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 INPUT_FOLDER = PROJECT_ROOT / "data" / "raw"
 OUTPUT_FOLDER = PROJECT_ROOT / "data" / "interim"

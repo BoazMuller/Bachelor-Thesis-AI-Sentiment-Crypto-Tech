@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 
 from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
 from thesis.table_output import write_registered_table  # noqa: E402
-from thesis.thesis_tables import (  # noqa: E402
-    read_daily_time_series,
+from thesis.tables.common import read_daily_time_series  # noqa: E402
+from thesis.tables.expectation_adjusted_sentiment import (  # noqa: E402
     table_19_prediction_market_control_definitions,
     table_20_residual_regression_sample_alignment,
     table_21_correlation_matrix_multicollinearity,

@@ -15,31 +15,34 @@ from pathlib import Path
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 
 from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
 from thesis.table_output import write_registered_table  # noqa: E402
 from thesis.table_registry import ensure_output_structure  # noqa: E402
-from thesis.thesis_tables import (  # noqa: E402
-    add_sentiment_measures,
+from thesis.tables.common import add_sentiment_measures, read_daily_time_series  # noqa: E402
+from thesis.tables.data_inventory import table_01_data_inventory  # noqa: E402
+from thesis.tables.egarch_eda import (  # noqa: E402
     make_egarch_eda_figures,
-    read_daily_time_series,
-    table_01_data_inventory,
     table_02_return_sentiment_descriptives,
     table_03_pre_estimation_diagnostics,
     table_04_arma_lag_order_selection,
-    table_14_text_data_coverage_by_source,
-    table_15_daily_sentiment_descriptives_by_source,
-    table_16_sentiment_source_correlation_matrix,
-    table_17_pca_results,
-    table_18_ais_construction_validation,
+)
+from thesis.tables.expectation_adjusted_sentiment import (  # noqa: E402
     table_19_prediction_market_control_definitions,
     table_20_residual_regression_sample_alignment,
     table_21_correlation_matrix_multicollinearity,
     table_22_orthogonalization_regression_results,
     table_23_residual_ais_validation,
     table_24_raw_ais_versus_residual_ais,
+)
+from thesis.tables.sentiment_pca import (  # noqa: E402
+    table_14_text_data_coverage_by_source,
+    table_15_daily_sentiment_descriptives_by_source,
+    table_16_sentiment_source_correlation_matrix,
+    table_17_pca_results,
+    table_18_ais_construction_validation,
 )
 
 

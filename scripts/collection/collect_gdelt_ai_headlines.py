@@ -35,7 +35,7 @@ Authentication:
     gcloud config set project YOUR_PROJECT_ID
 
 Usage:
-    python scripts/collect_gdelt_ai_headlines.py --project-id YOUR_PROJECT_ID
+    python scripts/collection/collect_gdelt_ai_headlines.py --project-id YOUR_PROJECT_ID
 """
 
 import argparse
@@ -53,8 +53,8 @@ from google.cloud import bigquery
 # User settings
 # ---------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "gdelt"
 
 DEFAULT_PROJECT_ID = (
     os.environ.get("GOOGLE_CLOUD_PROJECT")

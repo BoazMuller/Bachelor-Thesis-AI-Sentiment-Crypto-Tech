@@ -6,8 +6,8 @@ tables under results/tables/data_validation/. It does not estimate thesis
 models; it checks whether the data is suitable for those models.
 
 Usage:
-    python scripts/check_time_series_data.py
-    python scripts/check_time_series_data.py --input-csv data/processed/combined_time_series.csv
+    python scripts/validation/check_time_series_data.py
+    python scripts/validation/check_time_series_data.py --input-csv data/processed/combined_time_series.csv
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = PROJECT_ROOT / "code" / "src"
 sys.path.insert(0, str(SRC_DIR))
 os.environ.setdefault("MPLCONFIGDIR", "/private/tmp/thesis_matplotlib")
@@ -27,7 +27,8 @@ Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
 Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
 
 from thesis.paths import PROCESSED_DATA_DIR, TABLES_DIR  # noqa: E402
-from thesis.time_series_validation import (  # noqa: E402
+from thesis.data.inventory import variable_inventory  # noqa: E402
+from thesis.modeling.diagnostics import (  # noqa: E402
     arch_lm_tests,
     autocorrelation_tests,
     correlation_matrix,
@@ -41,7 +42,6 @@ from thesis.time_series_validation import (  # noqa: E402
     read_time_series,
     stationarity_tests,
     var_stability_checks,
-    variable_inventory,
 )
 
 

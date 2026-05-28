@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 START_DATE = pd.Timestamp("2024-04-01")
 END_DATE = pd.Timestamp("2026-03-31")

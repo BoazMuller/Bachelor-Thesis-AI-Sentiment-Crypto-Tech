@@ -14,9 +14,9 @@ The merger is intentionally conservative:
     - Different schemas are merged with the union of all columns.
 
 Usage:
-    python3 scripts/CSV_merger.py
-    python3 scripts/CSV_merger.py --input-folder data/interim
-    python3 scripts/CSV_merger.py --output-file data/processed/reddit/my_file.csv
+    python3 scripts/cleaning/merge_reddit_submission_csvs.py
+    python3 scripts/cleaning/merge_reddit_submission_csvs.py --input-folder data/interim
+    python3 scripts/cleaning/merge_reddit_submission_csvs.py --output-file data/processed/reddit/my_file.csv
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from typing import Iterable
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_FOLDER = PROJECT_ROOT / "data" / "interim"
 DEFAULT_OUTPUT_FILE = (
     PROJECT_ROOT / "data" / "interim" / "reddit_merged.csv"
