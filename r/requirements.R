@@ -12,7 +12,16 @@ missing_packages <- required_packages[
 ]
 
 if (length(missing_packages) > 0) {
-  install.packages(missing_packages)
+  stop(
+    paste(
+      "Missing R packages:",
+      paste(missing_packages, collapse = ", "),
+      "\nRestore the project R environment with:",
+      "\n  Rscript r/setup_renv.R",
+      "\nThe model scripts do not install packages at run time."
+    ),
+    call. = FALSE
+  )
 }
 
-invisible(lapply(required_packages, require, character.only = TRUE))
+invisible(required_packages)

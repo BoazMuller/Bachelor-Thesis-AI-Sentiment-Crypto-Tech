@@ -4,15 +4,18 @@ R is used for the benchmark TVP-VAR connectedness model because the
 `ConnectednessApproach` package directly supports the connectedness workflow
 needed for the thesis.
 
-Install the R dependencies from the project root:
+Restore the R dependencies from the project root:
 
-```r
-source("r/requirements.R")
+```bash
+Rscript r/setup_renv.R
 ```
+
+The model scripts check for the restored packages at run time but do not install
+or update packages during estimation.
 
 Python should prepare model-ready volatility inputs first. The later
 TVP-VAR script will read those inputs, run `ConnectednessApproach`, and export
-connectedness tables to `results/tables/`.
+connectedness tables with explicit date columns to `results/tables/`.
 
 Expected input format for the TVP-VAR script:
 
