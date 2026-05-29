@@ -1,4 +1,4 @@
-# R Workflow
+# R Model Workflow
 
 R is used for volatility and connectedness models because `rugarch` supports the
 EGARCH specifications and `ConnectednessApproach` directly supports the

@@ -1,4 +1,4 @@
-# Scripts
+# Workflow Entry Points
 
 Put repeatable command-line entry points here, such as:
 

@@ -1,6 +1,9 @@
-# Thesis Repository
+# Thesis Replication Workflow
 
-This repository is a starting point for an econometrics and data science thesis. It is organized to keep source code, data, analysis notebooks, thesis writing, and generated outputs separate and reproducible.
+This repository contains the Python and R workflow for the thesis empirical
+analysis. It is organized to keep source code, raw data, processed data,
+analysis notebooks, model outputs, thesis tables, and manuscript files separate
+and reproducible.
 
 ## Project Structure
 
@@ -30,46 +33,21 @@ This repository is a starting point for an econometrics and data science thesis.
 └── thesis/               # Thesis manuscript files
 ```
 
-## Recommended Workflow
+## Supporting Documentation
 
-1. Put untouched source data in `data/raw/`.
-2. Put reusable logic in `code/src/thesis/` and thin workflow entry points in `scripts/`.
-3. Save cleaned analysis-ready datasets in `data/processed/`.
-4. Use notebooks for exploration, not as the only place where important transformations live.
-5. Save generated figures and tables to `results/figures/` and `results/tables/`.
-6. Keep manuscript text in `thesis/`.
+- `data/DATA_SOURCES_AND_PROCESSING.md`: raw data sources, transformations, validation notes, and model artifact dependencies.
+- `scripts/WORKFLOW_ENTRY_POINTS.md`: script layout, common entry points, and model workflow order.
+- `r/R_MODEL_WORKFLOW.md`: R dependency setup and volatility/connectedness model commands.
+- `results/OUTPUT_ARTIFACTS.md`: generated output directory conventions.
+- `notebooks/EXPLORATORY_NOTEBOOKS.md`: notebook usage conventions.
+- `thesis/MANUSCRIPT_WORKFLOW.md`: manuscript directory conventions.
 
-## Reproducible Empirical Pipeline
+## Full Replication Workflow
 
-Run commands from the project root after activating the Python environment.
-Collection and RoBERTa inference are expensive and only need to be rerun when
-their inputs change.
+Run commands from the project root. The collection and RoBERTa steps can be
+expensive, so rerun them only when the corresponding raw inputs change.
 
-```bash
-python scripts/preparation/build_combined_time_series.py
-python scripts/preparation/prepare_egarch_inputs.py
-python scripts/preparation/prepare_tvpvar_inputs.py
-
-Rscript r/modeling/run_armax_egarchx.R
-python scripts/reporting/make_armax_egarchx_model_tables.py
-
-Rscript r/modeling/run_egarch_volatility.R
-python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-only
-python scripts/modeling/run_tvpvar_connectedness_models.py
-python scripts/reporting/make_tvpvar_connectedness_tables.py
-
-python scripts/reporting/make_spillover_regression_tables.py
-```
-
-The ARMAX-EGARCHX stage uses BIC-selected ARMA mean lags, EGARCH(1,1),
-Student-t innovations, and lagged AI sentiment in both the mean and variance
-equations. The TVP-VAR stage uses plain EGARCH(1,1) conditional volatilities
-with no ARMA terms and no sentiment variables; TVP-VAR lag order is selected by
-BIC separately for each volatility system.
-
-## Setup
-
-Create and activate a virtual environment:
+### 1. Create The Python Environment
 
 ```bash
 python3 -m venv .venv
@@ -79,16 +57,150 @@ python -m pip install -r requirements.txt
 python -m pip install -e code
 ```
 
-Run tests:
+### 2. Restore R Dependencies
+
+```bash
+Rscript r/setup_renv.R
+```
+
+### 3. Place Or Collect Raw Inputs
+
+Some raw inputs are collected by scripts and some are external files that must
+be placed in the expected directories before building the processed dataset.
+
+Expected external files:
+
+- `data/raw/finance/All_Daily_Policy_Data.csv`
+- `data/raw/finance/data_gpr_daily_recent.csv`
+- `data/raw/kalshi/Kalshi Prices.csv`
+- `data/raw/metaculus/Metaculus_question_data.csv`
+- `data/raw/metaculus/Metaculus_forecast_data.csv`
+- Pushshift monthly Reddit submission dumps under `data/raw/reddit/submissions/`
+
+Collect GDELT headlines with Google Cloud BigQuery credentials:
+
+```bash
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT_ID
+python scripts/collection/collect_gdelt_ai_headlines.py --project-id YOUR_PROJECT_ID
+```
+
+Collect Yahoo Finance prices:
+
+```bash
+python scripts/collection/collect_yahoo_finance.py
+```
+
+If the Yahoo output already exists and should be regenerated:
+
+```bash
+python scripts/collection/collect_yahoo_finance.py --force
+```
+
+Extract and filter Reddit submissions:
+
+```bash
+python scripts/collection/extract_target_subreddits.py \
+  --input-folder data/raw/reddit/submissions \
+  --output-folder data/interim/reddit/target_subreddits
+
+python scripts/collection/filter_pushshift_ai.py \
+  --input-folder data/interim/reddit/target_subreddits \
+  --output-folder data/interim/reddit/ai_submissions
+
+python scripts/cleaning/merge_reddit_submission_csvs.py \
+  --input-folder data/interim/reddit/ai_submissions \
+  --output-file data/interim/reddit_merged.csv
+```
+
+### 4. Build Text Sentiment Inputs
+
+```bash
+python scripts/cleaning/prepare_roberta_text_input.py
+python scripts/modeling/run_roberta_sentiment.py
+```
+
+If the RoBERTa output already exists and should be regenerated:
+
+```bash
+python scripts/modeling/run_roberta_sentiment.py --force
+```
+
+### 5. Build And Validate The Processed Time Series
+
+```bash
+python scripts/preparation/build_combined_time_series.py
+python scripts/validation/check_time_series_data.py
+```
+
+### 6. Generate Python-Buildable Tables And EDA Figures
+
+This builds Tables 1-4 and 14-24, plus the Python-generated EDA figures.
+
+```bash
+python scripts/reporting/make_thesis_tables.py
+```
+
+The same table groups can also be regenerated separately:
+
+```bash
+python scripts/reporting/make_data_inventory_tables.py
+python scripts/reporting/make_egarch_eda_tables.py
+python scripts/reporting/make_sentiment_dfm_em_tables.py
+python scripts/reporting/make_expectation_adjusted_sentiment_tables.py
+```
+
+### 7. Run ARMAX-EGARCHX Models And Tables
+
+```bash
+python scripts/preparation/prepare_egarch_inputs.py
+Rscript r/modeling/run_armax_egarchx.R
+python scripts/reporting/make_armax_egarchx_model_tables.py
+```
+
+The ARMAX-EGARCHX stage uses BIC-selected ARMA mean lags, EGARCH(1,1),
+Student-t innovations, and lagged AI sentiment in both the mean and variance
+equations.
+
+### 8. Run Plain EGARCH And TVP-VAR Connectedness Models
+
+```bash
+python scripts/preparation/prepare_tvpvar_inputs.py
+Rscript r/modeling/run_egarch_volatility.R
+python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-only
+python scripts/modeling/run_tvpvar_connectedness_models.py
+python scripts/reporting/make_tvpvar_connectedness_tables.py
+```
+
+The TVP-VAR stage uses plain EGARCH(1,1) conditional volatilities with no ARMA
+terms and no sentiment variables. TVP-VAR lag order is selected by BIC
+separately for each volatility system.
+
+### 9. Generate Spillover Regression Tables
+
+```bash
+python scripts/reporting/make_spillover_regression_tables.py
+```
+
+### 10. Optional Checks
 
 ```bash
 pytest
 ```
 
+## Recommended Workflow
+
+1. Put untouched source data in `data/raw/`.
+2. Put reusable logic in `code/src/thesis/` and thin workflow entry points in `scripts/`.
+3. Save cleaned analysis-ready datasets in `data/processed/`.
+4. Use notebooks for exploration, not as the only place where important transformations live.
+5. Save generated figures and tables to `results/figures/` and `results/tables/`.
+6. Keep manuscript text in `thesis/`.
+
 ## Reproducibility Notes
 
 - Large or sensitive datasets should stay out of Git.
-- Document every raw data source in `data/README.md`.
+- Document every raw data source in `data/DATA_SOURCES_AND_PROCESSING.md`.
 - Prefer scripted pipelines over manual spreadsheet edits.
 - Record package versions in `requirements.txt` or `environment.yml`.
 - Use fixed random seeds for simulations, train/test splits, bootstraps, and model estimation where appropriate.

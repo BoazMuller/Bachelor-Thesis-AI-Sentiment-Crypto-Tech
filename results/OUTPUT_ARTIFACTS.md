@@ -1,4 +1,4 @@
-# Results
+# Output Artifacts
 
 Generated outputs belong here. These folders are ignored by Git by default, except for `.gitkeep` placeholders.
 
@@ -8,4 +8,3 @@ Generated outputs belong here. These folders are ignored by Git by default, exce
 - `tables/`: Regression tables, summary statistics, and export-ready tables.
 - `models/`: Serialized fitted models or model diagnostics.
 - `reports/`: Generated reports, logs, and supplementary outputs.
-

@@ -1,4 +1,4 @@
-# Data
+# Data Sources And Processing
 
 Keep original data immutable. If a raw file needs cleaning or transformation,
 write code that reads from `data/raw/` and writes to `data/interim/` or
