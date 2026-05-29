@@ -51,7 +51,7 @@ TABLE_REGISTRY: dict[int, TableSpec] = {
     14: TableSpec(14, "Text data coverage by source", "04_sentiment_pca", "table_14_text_data_coverage_by_source"),
     15: TableSpec(15, "Daily sentiment descriptive statistics by source", "04_sentiment_pca", "table_15_daily_sentiment_descriptives_by_source"),
     16: TableSpec(16, "Sentiment source correlation matrix", "04_sentiment_pca", "table_16_sentiment_source_correlation_matrix"),
-    17: TableSpec(17, "PCA results", "04_sentiment_pca", "table_17_pca_results"),
+    17: TableSpec(17, "Dynamic factor AIS results", "04_sentiment_pca", "table_17_dynamic_factor_results"),
     18: TableSpec(18, "AIS construction validation", "04_sentiment_pca", "table_18_ais_construction_validation"),
     19: TableSpec(19, "Prediction-market and control-variable definitions", "05_expectation_adjusted_sentiment", "table_19_prediction_market_control_definitions"),
     20: TableSpec(20, "Residual-regression sample alignment", "05_expectation_adjusted_sentiment", "table_20_residual_regression_sample_alignment"),

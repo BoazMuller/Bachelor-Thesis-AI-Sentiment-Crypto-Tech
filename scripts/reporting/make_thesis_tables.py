@@ -41,7 +41,7 @@ from thesis.tables.sentiment_pca import (  # noqa: E402
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,
-    table_17_pca_results,
+    table_17_dynamic_factor_results,
     table_18_ais_construction_validation,
 )
 
@@ -77,7 +77,7 @@ def main() -> None:
     outputs.extend(write_registered_table(14, table_14_text_data_coverage_by_source(sentiment_records), formats=args.formats))
     outputs.extend(write_registered_table(15, table_15_daily_sentiment_descriptives_by_source(df), formats=args.formats))
     outputs.extend(write_registered_table(16, table_16_sentiment_source_correlation_matrix(df), formats=args.formats))
-    outputs.extend(write_registered_table(17, table_17_pca_results(df), formats=args.formats))
+    outputs.extend(write_registered_table(17, table_17_dynamic_factor_results(df), formats=args.formats))
     outputs.extend(write_registered_table(18, table_18_ais_construction_validation(df), formats=args.formats))
     outputs.extend(write_registered_table(19, table_19_prediction_market_control_definitions(), formats=args.formats))
     outputs.extend(write_registered_table(20, table_20_residual_regression_sample_alignment(df), formats=args.formats))

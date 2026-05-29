@@ -200,13 +200,13 @@ VARIABLE_METADATA: dict[str, VariableMetadata] = {
     ),
     "raw_ais": VariableMetadata(
         symbol="AIS_t",
-        source="PCA of standardized GDELT/news and Reddit/social-media sentiment",
+        source="One-factor dynamic factor model of standardized GDELT/news and Reddit/social-media sentiment",
         raw_frequency="Daily source-level sentiment",
         transformed_frequency="Trading day",
-        transformation="First principal component of standardized source sentiment; sign normalized positive",
+        transformation="One-sided filtered latent DFM factor estimated by EM; factor-order lag length selected by BIC among converged candidates; sign normalized positive",
         expected_sign_or_role="AI sentiment index; robustness check for expectation-adjusted sentiment",
-        units="PCA score",
-        treatment_of_missing_values="Complete-case PCA over dates with both source sentiment measures",
+        units="Standardized latent factor score",
+        treatment_of_missing_values="State-space DFM filtering over available standardized source sentiment measures",
         notes="Higher values mean more positive AI sentiment",
     ),
     "expectation_adjusted_ais": VariableMetadata(

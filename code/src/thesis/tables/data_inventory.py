@@ -64,7 +64,7 @@ def _units_for_variable(column: str) -> str:
 
 def _notes_for_variable(column: str) -> str:
     if column == RAW_AIS:
-        return "PC1 of standardized GDELT/news and Reddit/social-media sentiment, sign-normalized positive"
+        return "One-sided filtered one-factor DFM score from standardized GDELT/news and Reddit/social-media sentiment"
     if column == EXPECTATION_ADJUSTED_AIS:
         return "Residual from baseline expectation orthogonalization"
     if column == ROBUST_EXPECTATION_ADJUSTED_AIS:

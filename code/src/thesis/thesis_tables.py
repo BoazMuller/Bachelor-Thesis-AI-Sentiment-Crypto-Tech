@@ -5,7 +5,7 @@ from thesis.tables.common import (
     GDELT_SENTIMENT,
     INVERTED_METACULUS,
     LAGGED_EXPECTATION_ADJUSTED_AIS,
-    PCAConstruction,
+    DynamicFactorConstruction,
     RAW_AIS,
     REDDIT_SENTIMENT,
     RETURN_COLUMNS,
@@ -46,7 +46,7 @@ from thesis.tables.sentiment_pca import (
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,
-    table_17_pca_results,
+    table_17_dynamic_factor_results,
     table_18_ais_construction_validation,
 )
 from thesis.tables.tvpvar_connectedness import (

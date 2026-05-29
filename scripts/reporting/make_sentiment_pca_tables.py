@@ -1,5 +1,5 @@
 """
-Build thesis Tables 14-18 for source-level sentiment coverage and AIS PCA validation.
+Build thesis Tables 14-18 for source-level sentiment coverage and DFM AIS validation.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from thesis.tables.sentiment_pca import (  # noqa: E402
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,
-    table_17_pca_results,
+    table_17_dynamic_factor_results,
     table_18_ais_construction_validation,
 )
 
@@ -31,7 +31,7 @@ DEFAULT_SENTIMENT_RECORDS_CSV = PROCESSED_DATA_DIR / "combined_dedup_roberta_sen
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate thesis sentiment PCA tables.")
+    parser = argparse.ArgumentParser(description="Generate thesis sentiment dynamic factor tables.")
     parser.add_argument("--time-series-csv", type=Path, default=DEFAULT_TIME_SERIES_CSV)
     parser.add_argument("--sentiment-records-csv", type=Path, default=DEFAULT_SENTIMENT_RECORDS_CSV)
     parser.add_argument("--formats", nargs="+", default=["csv", "tex"], choices=["csv", "tex", "md"])
@@ -47,7 +47,7 @@ def main() -> None:
     outputs.extend(write_registered_table(14, table_14_text_data_coverage_by_source(sentiment_records), formats=args.formats))
     outputs.extend(write_registered_table(15, table_15_daily_sentiment_descriptives_by_source(df), formats=args.formats))
     outputs.extend(write_registered_table(16, table_16_sentiment_source_correlation_matrix(df), formats=args.formats))
-    outputs.extend(write_registered_table(17, table_17_pca_results(df), formats=args.formats))
+    outputs.extend(write_registered_table(17, table_17_dynamic_factor_results(df), formats=args.formats))
     outputs.extend(write_registered_table(18, table_18_ais_construction_validation(df), formats=args.formats))
 
     for path in outputs:
