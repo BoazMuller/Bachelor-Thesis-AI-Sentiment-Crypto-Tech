@@ -73,6 +73,7 @@ assert_fit_converged <- function(fit, asset_name) {
 
 extract_coefficients <- function(fit, asset_name, nobs) {
   coefficients <- as.data.frame(fit@fit$matcoef)
+  names(coefficients) <- trimws(names(coefficients))
   coefficients$term <- rownames(coefficients)
   rownames(coefficients) <- NULL
   coefficients |>

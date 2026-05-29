@@ -101,12 +101,14 @@ assert_fit_converged <- function(fit, asset_name, specification_name, p, q) {
 
 extract_coefficients <- function(fit, asset_name, specification_name, p, q) {
   default <- as.data.frame(fit@fit$matcoef)
+  names(default) <- trimws(names(default))
   default$term <- rownames(default)
   rownames(default) <- NULL
   default$standard_error_type <- "default"
 
   if (!is.null(fit@fit$robust.matcoef)) {
     robust <- as.data.frame(fit@fit$robust.matcoef)
+    names(robust) <- trimws(names(robust))
     robust$term <- rownames(robust)
     rownames(robust) <- NULL
     robust$standard_error_type <- "robust"
