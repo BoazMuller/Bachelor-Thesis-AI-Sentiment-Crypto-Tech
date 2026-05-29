@@ -42,7 +42,7 @@ from thesis.tables.expectation_adjusted_sentiment import (
     table_24_raw_ais_versus_residual_ais,
 )
 from thesis.tables.model_inputs import prepare_egarch_input, prepare_tvpvar_return_input
-from thesis.tables.sentiment_pca import (
+from thesis.tables.sentiment_dfm_em import (
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,

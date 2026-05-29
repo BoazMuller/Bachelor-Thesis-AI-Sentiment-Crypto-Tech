@@ -302,9 +302,6 @@ def table_17_dynamic_factor_results(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
-def table_17_pca_results(df: pd.DataFrame) -> pd.DataFrame:
-    return table_17_dynamic_factor_results(df)
-
 def table_18_ais_construction_validation(df: pd.DataFrame) -> pd.DataFrame:
     dfm_result = construct_ais(df)
     enriched = df.copy()

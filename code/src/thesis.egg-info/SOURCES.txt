@@ -24,7 +24,7 @@ src/thesis/tables/data_inventory.py
 src/thesis/tables/egarch_eda.py
 src/thesis/tables/expectation_adjusted_sentiment.py
 src/thesis/tables/model_inputs.py
-src/thesis/tables/sentiment_pca.py
+src/thesis/tables/sentiment_dfm_em.py
 src/thesis/tables/spillover_regressions.py
 src/thesis/tables/tvpvar_connectedness.py
 tests/test_paths.py

@@ -60,9 +60,6 @@ class DynamicFactorConstruction:
     iterations: int
     standardized_sources: pd.DataFrame
 
-
-PCAConstruction = DynamicFactorConstruction
-
 def read_daily_time_series(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     if DATE_COLUMN not in df.columns:

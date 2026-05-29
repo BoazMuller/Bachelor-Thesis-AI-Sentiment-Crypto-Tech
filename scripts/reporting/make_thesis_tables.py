@@ -37,7 +37,7 @@ from thesis.tables.expectation_adjusted_sentiment import (  # noqa: E402
     table_23_residual_ais_validation,
     table_24_raw_ais_versus_residual_ais,
 )
-from thesis.tables.sentiment_pca import (  # noqa: E402
+from thesis.tables.sentiment_dfm_em import (  # noqa: E402
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,

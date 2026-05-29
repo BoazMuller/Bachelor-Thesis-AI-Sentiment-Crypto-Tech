@@ -1,5 +1,5 @@
 """
-Build thesis Tables 14-18 for source-level sentiment coverage and DFM AIS validation.
+Build thesis Tables 14-18 for source-level sentiment coverage and DFM-EM AIS validation.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
 from thesis.table_output import write_registered_table  # noqa: E402
 from thesis.tables.common import read_daily_time_series  # noqa: E402
-from thesis.tables.sentiment_pca import (  # noqa: E402
+from thesis.tables.sentiment_dfm_em import (  # noqa: E402
     table_14_text_data_coverage_by_source,
     table_15_daily_sentiment_descriptives_by_source,
     table_16_sentiment_source_correlation_matrix,
@@ -31,7 +31,7 @@ DEFAULT_SENTIMENT_RECORDS_CSV = PROCESSED_DATA_DIR / "combined_dedup_roberta_sen
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate thesis sentiment dynamic factor tables.")
+    parser = argparse.ArgumentParser(description="Generate thesis sentiment DFM-EM tables.")
     parser.add_argument("--time-series-csv", type=Path, default=DEFAULT_TIME_SERIES_CSV)
     parser.add_argument("--sentiment-records-csv", type=Path, default=DEFAULT_SENTIMENT_RECORDS_CSV)
     parser.add_argument("--formats", nargs="+", default=["csv", "tex"], choices=["csv", "tex", "md"])

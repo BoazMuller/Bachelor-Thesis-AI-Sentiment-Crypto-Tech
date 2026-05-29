@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 
 from thesis.tables import common as common_tables
-from thesis.tables import sentiment_pca as sentiment_pca_tables
+from thesis.tables import sentiment_dfm_em as sentiment_dfm_em_tables
 from thesis.tables.common import GDELT_SENTIMENT, REDDIT_SENTIMENT
-from thesis.tables.sentiment_pca import (
+from thesis.tables.sentiment_dfm_em import (
     table_15_daily_sentiment_descriptives_by_source,
     table_17_dynamic_factor_results,
     table_18_ais_construction_validation,
@@ -197,9 +197,9 @@ def test_table_17_reports_nonconverged_bic_as_na(monkeypatch):
         selected_factor_order=2,
         loadings=pd.Series({GDELT_SENTIMENT: 0.5, REDDIT_SENTIMENT: 0.5}),
     )
-    monkeypatch.setattr(sentiment_pca_tables, "construct_ais", lambda _: fake_result)
+    monkeypatch.setattr(sentiment_dfm_em_tables, "construct_ais", lambda _: fake_result)
 
-    table = sentiment_pca_tables.table_17_dynamic_factor_results(pd.DataFrame())
+    table = sentiment_dfm_em_tables.table_17_dynamic_factor_results(pd.DataFrame())
 
     nonconverged_bic = table[
         table["metric"].eq("bic") & table["factor_order"].eq(1)
