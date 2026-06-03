@@ -9,8 +9,6 @@ from thesis.tables.common import (
     RAW_AIS,
     REDDIT_SENTIMENT,
     RETURN_COLUMNS,
-    ROBUST_CONTROLS,
-    ROBUST_EXPECTATION_ADJUSTED_AIS,
     SOURCE_SENTIMENT_COLUMNS,
     add_sentiment_measures,
     construct_ais,
@@ -31,7 +29,6 @@ from thesis.tables.egarch_eda import (
     make_egarch_eda_figures,
     table_02_return_sentiment_descriptives,
     table_03_pre_estimation_diagnostics,
-    table_04_arma_lag_order_selection,
 )
 from thesis.tables.expectation_adjusted_sentiment import (
     table_19_prediction_market_control_definitions,

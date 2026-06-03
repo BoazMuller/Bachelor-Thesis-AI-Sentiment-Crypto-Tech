@@ -12,40 +12,21 @@ def write_registered_table(
     table_number: int,
     df: pd.DataFrame,
     *,
-    formats: Iterable[str] = ("csv", "tex"),
+    formats: Iterable[str] = ("csv",),
 ) -> list[Path]:
     spec = get_table_spec(table_number)
     spec.output_dir.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
     requested = set(formats)
+    unsupported = requested.difference({"csv"})
+    if unsupported:
+        raise ValueError(f"Only CSV table output is supported; got: {sorted(unsupported)}")
     table = _format_dates(df)
 
     if "csv" in requested:
         path = spec.output_dir / spec.csv_filename
         table.to_csv(path, index=False)
-        outputs.append(path)
-
-    if "tex" in requested:
-        path = spec.output_dir / spec.tex_filename
-        with path.open("w", encoding="utf-8") as handle:
-            handle.write(
-                table.to_latex(
-                    index=False,
-                    escape=True,
-                    caption=spec.title,
-                    label=spec.latex_label,
-                    float_format="%.6g",
-                )
-            )
-        outputs.append(path)
-
-    if "md" in requested:
-        path = spec.output_dir / spec.md_filename
-        try:
-            path.write_text(table.to_markdown(index=False), encoding="utf-8")
-        except ImportError:
-            path.write_text(table.to_string(index=False), encoding="utf-8")
         outputs.append(path)
 
     return outputs

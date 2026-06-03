@@ -8,10 +8,23 @@ from thesis.tables.common import (
     DATE_COLUMN,
     EXPECTATION_ADJUSTED_AIS,
     LAGGED_EXPECTATION_ADJUSTED_AIS,
+    LOG_EPU,
+    LOG_GPR,
     RAW_AIS,
     descriptive_stats_table,
+    expectation_adjusted_sample,
     regression_table,
+    raw_ais_sample,
 )
+
+CONNECTEDNESS_REGRESSION_CONTROLS = [
+    "dxy_close_log_return",
+    "vix_close",
+    LOG_GPR,
+    LOG_EPU,
+]
+
+CONNECTEDNESS_DEPENDENT_PATTERNS = ("_tci_", "_to_", "_from_")
 
 def merge_sentiment_if_needed(dataset: pd.DataFrame, time_series: pd.DataFrame) -> pd.DataFrame:
     required = [RAW_AIS, EXPECTATION_ADJUSTED_AIS, LAGGED_EXPECTATION_ADJUSTED_AIS]
@@ -19,7 +32,7 @@ def merge_sentiment_if_needed(dataset: pd.DataFrame, time_series: pd.DataFrame) 
         return dataset
     merge_columns = [DATE_COLUMN] + [
         column
-        for column in [RAW_AIS, EXPECTATION_ADJUSTED_AIS, LAGGED_EXPECTATION_ADJUSTED_AIS] + BASELINE_CONTROLS
+        for column in [RAW_AIS, EXPECTATION_ADJUSTED_AIS, LAGGED_EXPECTATION_ADJUSTED_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS
         if column in time_series.columns
     ]
     return dataset.merge(time_series[merge_columns], on=DATE_COLUMN, how="left")
@@ -32,13 +45,12 @@ def infer_dependent_columns(df: pd.DataFrame) -> list[str]:
         LAGGED_EXPECTATION_ADJUSTED_AIS,
         *BASELINE_CONTROLS,
     }
-    keywords = ("to", "from", "net", "npdc", "tci", "spillover", "connectedness")
     columns: list[str] = []
     for column in df.select_dtypes(include=[np.number]).columns:
         lower = column.lower()
         if column in excluded or column.endswith("_log_return"):
             continue
-        if any(keyword in lower for keyword in keywords):
+        if any(pattern in lower for pattern in CONNECTEDNESS_DEPENDENT_PATTERNS):
             columns.append(column)
     return columns
 
@@ -52,7 +64,7 @@ def table_25_dataset_summary(df: pd.DataFrame, dependent_columns: list[str]) -> 
 def table_26_correlation_matrix(df: pd.DataFrame, dependent_columns: list[str]) -> pd.DataFrame:
     variables = dependent_columns + [
         column
-        for column in [EXPECTATION_ADJUSTED_AIS, RAW_AIS] + BASELINE_CONTROLS
+        for column in [EXPECTATION_ADJUSTED_AIS, RAW_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS
         if column in df.columns
     ]
     corr = df[variables].apply(pd.to_numeric, errors="coerce").corr()
@@ -60,24 +72,23 @@ def table_26_correlation_matrix(df: pd.DataFrame, dependent_columns: list[str]) 
     return corr.reset_index(drop=True)
 
 def table_27_baseline_regressions(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
-    regressors = [column for column in [EXPECTATION_ADJUSTED_AIS] + BASELINE_CONTROLS if column in df.columns]
-    return _multi_dependent_regressions(df, dependent_columns, regressors, "headline_contemporaneous", cov_type)
+    regressors = [column for column in [EXPECTATION_ADJUSTED_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS if column in df.columns]
+    sample = expectation_adjusted_sample(df, extra_columns=dependent_columns + regressors)
+    return _multi_dependent_regressions(sample, dependent_columns, regressors, "headline_contemporaneous", cov_type)
 
 def table_28_lagged_regressions(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
-    regressors = [column for column in [LAGGED_EXPECTATION_ADJUSTED_AIS] + BASELINE_CONTROLS if column in df.columns]
-    return _multi_dependent_regressions(df, dependent_columns, regressors, "robustness_lagged_sentiment", cov_type)
+    regressors = [
+        column
+        for column in [EXPECTATION_ADJUSTED_AIS, LAGGED_EXPECTATION_ADJUSTED_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS
+        if column in df.columns
+    ]
+    sample = expectation_adjusted_sample(df, include_lagged=True, extra_columns=dependent_columns + regressors)
+    return _multi_dependent_regressions(sample, dependent_columns, regressors, "robustness_lagged_sentiment", cov_type)
 
-def table_29_raw_vs_residual_comparison(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
-    rows = []
-    specifications = {
-        "robustness_raw_ais": RAW_AIS,
-        "headline_expectation_adjusted_ais": EXPECTATION_ADJUSTED_AIS,
-    }
-    for specification_name, sentiment_variable in specifications.items():
-        regressors = [column for column in [sentiment_variable] + BASELINE_CONTROLS if column in df.columns]
-        table = _multi_dependent_regressions(df, dependent_columns, regressors, specification_name, cov_type)
-        rows.append(table)
-    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+def table_29_raw_ais_regressions(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
+    regressors = [column for column in [RAW_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS if column in df.columns]
+    sample = raw_ais_sample(df, extra_columns=dependent_columns + regressors)
+    return _multi_dependent_regressions(sample, dependent_columns, regressors, "robustness_raw_ais", cov_type)
 
 def _multi_dependent_regressions(
     df: pd.DataFrame,

@@ -46,6 +46,24 @@ def table_06_post_estimation_diagnostics(diagnostics_csv: Path) -> pd.DataFrame:
     ]
     return diagnostics[[column for column in keep_columns if column in diagnostics.columns]]
 
+def armax_egarchx_results(diagnostics_csv: Path) -> pd.DataFrame:
+    diagnostics = read_model_output(diagnostics_csv)
+    rows: list[dict[str, object]] = []
+    group_columns = ["asset", "specification", "selected_p", "selected_q", "nobs"]
+    for keys, group in diagnostics.groupby(group_columns, dropna=False):
+        row = dict(zip(group_columns, keys))
+        for _, diagnostic in group.iterrows():
+            name = str(diagnostic["diagnostic"])
+            lag = diagnostic.get("lag")
+            if pd.notna(lag):
+                suffix = f"{name}_lag_{int(lag)}"
+                row[f"{suffix}_statistic"] = diagnostic["statistic"]
+                row[f"{suffix}_p_value"] = diagnostic["p_value"]
+            else:
+                row[name] = diagnostic["statistic"]
+        rows.append(row)
+    return pd.DataFrame(rows)
+
 
 def table_07_egarch_volatility_extraction_summary(
     coefficients_csv: Path,

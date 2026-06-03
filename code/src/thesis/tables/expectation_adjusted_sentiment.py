@@ -7,32 +7,79 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from thesis.tables.common import (
     BASELINE_CONTROLS,
     EXPECTATION_ADJUSTED_AIS,
-    INVERTED_METACULUS,
+    INVERTED_METACULUS_DIFF,
+    KALSHI_DIFF,
+    LOG_EPU,
+    LOG_GPR,
     RAW_AIS,
-    ROBUST_CONTROLS,
-    ROBUST_EXPECTATION_ADJUSTED_AIS,
     add_sentiment_measures,
     descriptive_stats_table,
+    expectation_adjusted_sample,
     regression_table,
 )
+from thesis.modeling.diagnostics import stationarity_tests
+
+def expectation_adjusted_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    sample = expectation_adjusted_sample(df, extra_columns=[RAW_AIS])
+    columns = [
+        "date",
+        RAW_AIS,
+        EXPECTATION_ADJUSTED_AIS,
+        *[column for column in BASELINE_CONTROLS if column in sample.columns],
+    ]
+    return sample[[column for column in columns if column in sample.columns]]
+
+def expectation_adjusted_descriptives(df: pd.DataFrame) -> pd.DataFrame:
+    dataset = expectation_adjusted_dataset(df)
+    columns = [
+        column
+        for column in [RAW_AIS, EXPECTATION_ADJUSTED_AIS] + BASELINE_CONTROLS
+        if column in dataset.columns
+    ]
+    return descriptive_stats_table(dataset, columns)
+
+def expectation_adjusted_pre_estimation_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
+    dataset = expectation_adjusted_dataset(df)
+    columns = [
+        column
+        for column in [RAW_AIS, *BASELINE_CONTROLS]
+        if column in dataset.columns
+    ]
+    rows = []
+    if columns:
+        stationarity = stationarity_tests(dataset, columns)
+        for _, row in stationarity.iterrows():
+            rows.append(
+                {
+                    "diagnostic": "stationarity",
+                    "variable": row["variable"],
+                    "test": row["test"],
+                    "lag": row.get("lags", pd.NA),
+                    "statistic": row.get("statistic", pd.NA),
+                    "p_value": row.get("p_value", pd.NA),
+                    "nobs": row.get("nobs", pd.NA),
+                    "interpretation": row.get("interpretation", ""),
+                }
+            )
+    return pd.DataFrame(rows)
 
 def table_19_prediction_market_control_definitions() -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
-                "variable": "kalshi_before_2030",
+                "variable": KALSHI_DIFF,
                 "source": "Kalshi AGI-related prediction market",
-                "role": "Prediction-market expectation control",
-                "transformation": "Before 2030 contract price, aligned to trading days",
-                "units": "Contract-implied price/probability points",
+                "role": "Prediction-market expectation control (differenced)",
+                "transformation": "First difference of Before 2030 contract price, aligned to trading days",
+                "units": "Percentage points",
                 "timing": "Contemporaneous daily control",
             },
             {
-                "variable": INVERTED_METACULUS,
+                "variable": INVERTED_METACULUS_DIFF,
                 "source": "Metaculus AGI forecast history",
-                "role": "Forecast expectation control",
-                "transformation": "Negative days until median forecast date; larger values indicate nearer expected AGI timing",
-                "units": "Negative days",
+                "role": "Forecast expectation control (differenced)",
+                "transformation": "First difference of negative days until median forecast date; positive values indicate nearer expected AGI timing",
+                "units": "Days",
                 "timing": "Contemporaneous daily control",
             },
             {
@@ -52,11 +99,11 @@ def table_19_prediction_market_control_definitions() -> pd.DataFrame:
                 "timing": "Contemporaneous daily control",
             },
             {
-                "variable": "epu",
+                "variable": LOG_EPU,
                 "source": "Economic Policy Uncertainty daily policy index",
                 "role": "Robustness macro-financial control",
-                "transformation": "Daily index level",
-                "units": "Index points",
+                "transformation": "Natural logarithm of daily index level",
+                "units": "Log points",
                 "timing": "Contemporaneous daily control",
             },
             {
@@ -68,11 +115,11 @@ def table_19_prediction_market_control_definitions() -> pd.DataFrame:
                 "timing": "Contemporaneous daily control",
             },
             {
-                "variable": "gpr",
+                "variable": LOG_GPR,
                 "source": "Geopolitical Risk daily index",
                 "role": "Robustness geopolitical-risk control",
-                "transformation": "Daily index level",
-                "units": "Index points",
+                "transformation": "Natural logarithm of daily index level",
+                "units": "Log points",
                 "timing": "Contemporaneous daily control",
             },
         ]
@@ -82,8 +129,7 @@ def table_20_residual_regression_sample_alignment(df: pd.DataFrame) -> pd.DataFr
     enriched = add_sentiment_measures(df)
     groups = {
         "ais_only": [RAW_AIS],
-        "baseline_orthogonalization": [RAW_AIS] + [column for column in BASELINE_CONTROLS if column in enriched.columns],
-        "robust_orthogonalization": [RAW_AIS] + [column for column in ROBUST_CONTROLS if column in enriched.columns],
+        "orthogonalization": [RAW_AIS] + [column for column in BASELINE_CONTROLS if column in enriched.columns],
     }
     rows: list[dict[str, object]] = []
     for sample_name, columns in groups.items():
@@ -102,8 +148,8 @@ def table_20_residual_regression_sample_alignment(df: pd.DataFrame) -> pd.DataFr
     return pd.DataFrame(rows)
 
 def table_21_correlation_matrix_multicollinearity(df: pd.DataFrame) -> pd.DataFrame:
-    enriched = add_sentiment_measures(df)
-    variables = [RAW_AIS] + [column for column in ROBUST_CONTROLS if column in enriched.columns]
+    enriched = expectation_adjusted_dataset(df)
+    variables = [RAW_AIS] + [column for column in BASELINE_CONTROLS if column in enriched.columns]
     complete = enriched[variables].apply(pd.to_numeric, errors="coerce").dropna()
     rows: list[dict[str, object]] = []
     corr = complete.corr()
@@ -115,7 +161,7 @@ def table_21_correlation_matrix_multicollinearity(df: pd.DataFrame) -> pd.DataFr
                     "variable": left,
                     "comparison_variable": right,
                     "value": float(corr.loc[left, right]),
-                    "sample": "robust_controls_complete_case",
+                    "sample": "baseline_controls_complete_case",
                 }
             )
 
@@ -130,7 +176,7 @@ def table_21_correlation_matrix_multicollinearity(df: pd.DataFrame) -> pd.DataFr
                     "variable": column,
                     "comparison_variable": "",
                     "value": float(variance_inflation_factor(x.to_numpy(), idx)),
-                    "sample": "robust_controls_complete_case",
+                    "sample": "baseline_controls_complete_case",
                 }
             )
     return pd.DataFrame(rows)
@@ -140,21 +186,23 @@ def table_22_orthogonalization_regression_results(
     *,
     cov_type: str = "HC3",
 ) -> pd.DataFrame:
-    enriched = add_sentiment_measures(df)
+    enriched = expectation_adjusted_sample(df, extra_columns=[RAW_AIS])
     return regression_table(
         enriched,
         dependent=RAW_AIS,
         specifications={
             "baseline": [column for column in BASELINE_CONTROLS if column in enriched.columns],
-            "robust": [column for column in ROBUST_CONTROLS if column in enriched.columns],
+            "prediction_markets_only": [
+                column for column in [KALSHI_DIFF, INVERTED_METACULUS_DIFF] if column in enriched.columns
+            ],
         },
         cov_type=cov_type,
     )
 
 def table_23_residual_ais_validation(df: pd.DataFrame) -> pd.DataFrame:
-    enriched = add_sentiment_measures(df)
+    enriched = expectation_adjusted_dataset(df)
     rows: list[dict[str, object]] = []
-    for variable in [EXPECTATION_ADJUSTED_AIS, ROBUST_EXPECTATION_ADJUSTED_AIS]:
+    for variable in [EXPECTATION_ADJUSTED_AIS]:
         stats = descriptive_stats_table(enriched, [variable])
         for _, row in stats.iterrows():
             rows.append(
@@ -171,8 +219,7 @@ def table_23_residual_ais_validation(df: pd.DataFrame) -> pd.DataFrame:
                 "value": float(enriched[[variable, RAW_AIS]].corr().iloc[0, 1]),
             }
         )
-        controls = BASELINE_CONTROLS if variable == EXPECTATION_ADJUSTED_AIS else ROBUST_CONTROLS
-        for control in [column for column in controls if column in enriched.columns]:
+        for control in [column for column in BASELINE_CONTROLS if column in enriched.columns]:
             rows.append(
                 {
                     "measure": variable,
@@ -183,8 +230,8 @@ def table_23_residual_ais_validation(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 def table_24_raw_ais_versus_residual_ais(df: pd.DataFrame) -> pd.DataFrame:
-    enriched = add_sentiment_measures(df)
-    columns = [RAW_AIS, EXPECTATION_ADJUSTED_AIS, ROBUST_EXPECTATION_ADJUSTED_AIS]
+    enriched = expectation_adjusted_dataset(df)
+    columns = [RAW_AIS, EXPECTATION_ADJUSTED_AIS]
     stats = descriptive_stats_table(enriched, columns)
     corr = enriched[columns].corr()
     rows = stats.to_dict("records")

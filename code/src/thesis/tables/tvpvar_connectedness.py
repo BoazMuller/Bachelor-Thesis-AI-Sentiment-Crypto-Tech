@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.api import VAR
 
-from thesis.tables.common import DATE_COLUMN
+from thesis.modeling.diagnostics import autocorrelation_tests, stationarity_tests
+from thesis.tables.common import DATE_COLUMN, descriptive_stats_table
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,43 @@ def read_volatility_panel(path: Path) -> pd.DataFrame:
         raise ValueError(f"Expected a '{DATE_COLUMN}' column in {path}")
     df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
     return df.sort_values(DATE_COLUMN).reset_index(drop=True)
+
+def tvpvar_descriptives(volatility_panel: pd.DataFrame) -> pd.DataFrame:
+    columns = [column for column in volatility_panel.columns if column != DATE_COLUMN]
+    return descriptive_stats_table(volatility_panel, columns)
+
+def tvpvar_pre_estimation_diagnostics(volatility_panel: pd.DataFrame) -> pd.DataFrame:
+    columns = [column for column in volatility_panel.columns if column != DATE_COLUMN]
+    rows: list[dict[str, object]] = []
+    stationarity = stationarity_tests(volatility_panel, columns)
+    for _, row in stationarity.iterrows():
+        rows.append(
+            {
+                "diagnostic": "stationarity",
+                "variable": row["variable"],
+                "test": row["test"],
+                "lag": row.get("lags", np.nan),
+                "statistic": row.get("statistic", np.nan),
+                "p_value": row.get("p_value", np.nan),
+                "nobs": row.get("nobs", np.nan),
+                "interpretation": row.get("interpretation", ""),
+            }
+        )
+    autocorr = autocorrelation_tests(volatility_panel, columns)
+    for _, row in autocorr.iterrows():
+        rows.append(
+            {
+                "diagnostic": "autocorrelation",
+                "variable": row["variable"],
+                "test": "Ljung-Box",
+                "lag": row["lag"],
+                "statistic": row["lb_stat"],
+                "p_value": row["p_value"],
+                "nobs": row["nobs"],
+                "interpretation": row["interpretation"],
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def table_09_tvpvar_system_definition() -> pd.DataFrame:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-import warnings
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "thesis_matplotlib"))
@@ -14,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.tsa.arima.model import ARIMA
 
 from thesis.modeling.diagnostics import arch_lm_tests, autocorrelation_tests, stationarity_tests
 from thesis.paths import FIGURES_DIR
@@ -23,23 +21,33 @@ from thesis.tables.common import (
     EXPECTATION_ADJUSTED_AIS,
     RAW_AIS,
     RETURN_COLUMNS,
-    ROBUST_EXPECTATION_ADJUSTED_AIS,
     add_sentiment_measures,
     descriptive_stats_table,
 )
 
-def table_02_return_sentiment_descriptives(df: pd.DataFrame) -> pd.DataFrame:
+def table_02a_full_sample_descriptives(df_full: pd.DataFrame) -> pd.DataFrame:
     columns = [
         column
-        for column in RETURN_COLUMNS + [RAW_AIS, EXPECTATION_ADJUSTED_AIS, ROBUST_EXPECTATION_ADJUSTED_AIS]
-        if column in df.columns
+        for column in RETURN_COLUMNS + [RAW_AIS]
+        if column in df_full.columns
     ]
-    return descriptive_stats_table(df, columns)
+    return descriptive_stats_table(df_full, columns)
+
+def table_02b_restricted_sample_descriptives(df_restricted: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        column
+        for column in RETURN_COLUMNS + [EXPECTATION_ADJUSTED_AIS]
+        if column in df_restricted.columns
+    ]
+    return descriptive_stats_table(df_restricted, columns)
+
+def table_02_return_sentiment_descriptives(df: pd.DataFrame) -> pd.DataFrame:
+    return table_02b_restricted_sample_descriptives(df)
 
 def table_03_pre_estimation_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
     sentiment_columns = [
         column
-        for column in [RAW_AIS, EXPECTATION_ADJUSTED_AIS, ROBUST_EXPECTATION_ADJUSTED_AIS]
+        for column in [RAW_AIS, EXPECTATION_ADJUSTED_AIS]
         if column in df.columns
     ]
     diagnostic_columns = [column for column in RETURN_COLUMNS if column in df.columns] + sentiment_columns
@@ -60,12 +68,14 @@ def table_03_pre_estimation_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    autocorr = autocorrelation_tests(df, [column for column in RETURN_COLUMNS if column in df.columns])
+    autocorr = autocorrelation_tests(df, [column for column in RETURN_COLUMNS if column in df.columns] + sentiment_columns)
     for _, row in autocorr.iterrows():
+        var_name = row["variable"]
+        diag_name = "return_autocorrelation" if "return" in str(var_name) else "sentiment_autocorrelation"
         rows.append(
             {
-                "diagnostic": "return_autocorrelation",
-                "variable": row["variable"],
+                "diagnostic": diag_name,
+                "variable": var_name,
                 "test": "Ljung-Box",
                 "lag": row["lag"],
                 "statistic": row["lb_stat"],
@@ -90,61 +100,55 @@ def table_03_pre_estimation_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(rows)
-
-def table_04_arma_lag_order_selection(
-    df: pd.DataFrame,
-    *,
-    max_p: int = 3,
-    max_q: int = 3,
-) -> pd.DataFrame:
-    rows: list[dict[str, object]] = []
-    for column in [column for column in RETURN_COLUMNS if column in df.columns]:
-        series = pd.to_numeric(df[column], errors="coerce").dropna() * 100
-        candidate_rows: list[dict[str, object]] = []
-        for p in range(max_p + 1):
-            for q in range(max_q + 1):
+    # 4. Granger Causality Tests (1-lag check)
+    from statsmodels.tsa.stattools import grangercausalitytests
+    for sentiment_col in sentiment_columns:
+        for return_col in [column for column in RETURN_COLUMNS if column in df.columns]:
+            data = df[[return_col, sentiment_col]].dropna()
+            if len(data) > 10:
                 try:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        result = ARIMA(
-                            series,
-                            order=(p, 0, q),
-                            trend="c",
-                            enforce_stationarity=False,
-                            enforce_invertibility=False,
-                        ).fit()
-                    candidate_rows.append(
+                    res = grangercausalitytests(data, maxlag=[1], verbose=False)
+                    f_stat, p_value, _, _ = res[1][0]["ssr_ftest"]
+                    interpretation = (
+                        "Rejects no causality at 5%"
+                        if p_value < 0.05
+                        else "Does not reject no causality at 5%"
+                    )
+                    rows.append(
                         {
-                            "asset_return": column,
-                            "p": p,
-                            "q": q,
-                            "bic": float(result.bic),
-                            "aic": float(result.aic),
-                            "nobs": int(result.nobs),
-                            "converged": bool(result.mle_retvals.get("converged", False)),
-                            "note": "",
+                            "diagnostic": "granger_causality",
+                            "variable": sentiment_col,
+                            "test": f"Granger causes {return_col}",
+                            "lag": 1,
+                            "statistic": float(f_stat),
+                            "p_value": float(p_value),
+                            "nobs": int(len(data)),
+                            "interpretation": interpretation,
                         }
                     )
                 except Exception as exc:
-                    candidate_rows.append(
+                    rows.append(
                         {
-                            "asset_return": column,
-                            "p": p,
-                            "q": q,
-                            "bic": np.nan,
-                            "aic": np.nan,
-                            "nobs": int(len(series)),
-                            "converged": False,
-                            "note": f"{type(exc).__name__}: {exc}",
+                            "diagnostic": "granger_causality",
+                            "variable": sentiment_col,
+                            "test": f"Granger causes {return_col}",
+                            "lag": 1,
+                            "statistic": np.nan,
+                            "p_value": np.nan,
+                            "nobs": int(len(data)),
+                            "interpretation": f"Error: {type(exc).__name__}: {exc}",
                         }
                     )
-        valid = [row for row in candidate_rows if pd.notna(row["bic"])]
-        best = min(valid, key=lambda row: row["bic"]) if valid else None
-        for row in candidate_rows:
-            row["selected_by_bic"] = bool(best and row["p"] == best["p"] and row["q"] == best["q"])
-            rows.append(row)
+
     return pd.DataFrame(rows)
+
+def table_03_combined_pre_estimation_diagnostics(df_full: pd.DataFrame, df_restricted: pd.DataFrame) -> pd.DataFrame:
+    diag_full = table_03_pre_estimation_diagnostics(df_full)
+    diag_restricted = table_03_pre_estimation_diagnostics(df_restricted)
+    diag_restricted = diag_restricted[
+        diag_restricted["variable"].isin([EXPECTATION_ADJUSTED_AIS])
+    ]
+    return pd.concat([diag_full, diag_restricted], ignore_index=True)
 
 def make_egarch_eda_figures(df: pd.DataFrame) -> list[Path]:
     enriched = add_sentiment_measures(df)

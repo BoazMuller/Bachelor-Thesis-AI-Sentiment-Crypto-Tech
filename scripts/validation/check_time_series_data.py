@@ -28,20 +28,17 @@ Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
 
 from thesis.paths import PROCESSED_DATA_DIR, TABLES_DIR  # noqa: E402
 from thesis.data.inventory import variable_inventory  # noqa: E402
+from thesis.tables.common import add_sentiment_measures  # noqa: E402
 from thesis.modeling.diagnostics import (  # noqa: E402
     arch_lm_tests,
     autocorrelation_tests,
     correlation_matrix,
-    date_integrity_checks,
     default_model_check_columns,
-    default_var_groups,
     descriptive_statistics,
-    missing_spans,
     missing_value_summary,
     outlier_summary,
     read_time_series,
     stationarity_tests,
-    var_stability_checks,
 )
 
 
@@ -67,12 +64,6 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT_DIR,
         help="Directory where validation tables will be written.",
     )
-    parser.add_argument(
-        "--var-maxlags",
-        type=int,
-        default=10,
-        help="Maximum lag order considered for VAR stability checks.",
-    )
     return parser.parse_args()
 
 
@@ -90,71 +81,23 @@ def write_matrix(df, output_dir: Path, filename: str) -> Path:
     return path
 
 
-def write_markdown(df, output_dir: Path, filename: str) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / filename
-    headers = list(df.columns)
-    rows = [
-        "| " + " | ".join(_markdown_cell(value) for value in headers) + " |",
-        "| " + " | ".join("---" for _ in headers) + " |",
-    ]
-    for _, row in df.iterrows():
-        rows.append("| " + " | ".join(_markdown_cell(row[column]) for column in headers) + " |")
-    path.write_text("\n".join(rows) + "\n")
-    return path
-
-
-def write_latex(df, output_dir: Path, filename: str) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / filename
-    path.write_text(
-        df.to_latex(
-            index=False,
-            escape=True,
-            longtable=True,
-            caption="Data sources, definitions, transformations, and availability",
-            label="tab:data_inventory",
-        )
-    )
-    return path
-
-
-def _markdown_cell(value) -> str:
-    if value is None:
-        return ""
-    return str(value).replace("|", "\\|").replace("\n", " ")
-
-
 def main() -> None:
     args = parse_args()
     df = read_time_series(args.input_csv)
+    enriched = add_sentiment_measures(df)
     check_columns = default_model_check_columns(df)
     return_columns = [column for column in check_columns if column.endswith("_log_return")]
-    inventory = variable_inventory(df, project_root=PROJECT_ROOT)
+    inventory = variable_inventory(enriched, project_root=PROJECT_ROOT)
 
     outputs = [
         write_table(inventory, DEFAULT_INVENTORY_DIR, f"{TABLE_01_BASENAME}.csv"),
-        write_markdown(inventory, DEFAULT_INVENTORY_DIR, f"{TABLE_01_BASENAME}.md"),
-        write_latex(inventory, DEFAULT_INVENTORY_DIR, f"{TABLE_01_BASENAME}.tex"),
-        write_table(date_integrity_checks(df), args.output_dir, "date_integrity_checks.csv"),
         write_table(missing_value_summary(df), args.output_dir, "missing_values.csv"),
-        write_table(missing_spans(df), args.output_dir, "missing_spans.csv"),
         write_table(descriptive_statistics(df), args.output_dir, "descriptive_statistics.csv"),
         write_table(outlier_summary(df), args.output_dir, "outliers.csv"),
         write_matrix(correlation_matrix(df, method="pearson"), args.output_dir, "correlation_pearson.csv"),
-        write_matrix(correlation_matrix(df, method="spearman"), args.output_dir, "correlation_spearman.csv"),
         write_table(stationarity_tests(df, check_columns), args.output_dir, "stationarity_tests.csv"),
         write_table(autocorrelation_tests(df, check_columns), args.output_dir, "autocorrelation_ljungbox.csv"),
         write_table(arch_lm_tests(df, return_columns), args.output_dir, "arch_lm_tests.csv"),
-        write_table(
-            var_stability_checks(
-                df=df,
-                variable_groups=default_var_groups(),
-                maxlags=args.var_maxlags,
-            ),
-            args.output_dir,
-            "var_stability_checks.csv",
-        ),
     ]
 
     print(f"Validated {args.input_csv}")

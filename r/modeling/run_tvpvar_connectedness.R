@@ -4,7 +4,7 @@ if ("--help" %in% args || "-h" %in% args) {
   cat(
     paste(
       "Usage:",
-      "Rscript r/modeling/run_tvpvar_connectedness.R <input_csv> <output_dir> [nlag] [nfore] [columns_csv]",
+      "Rscript r/modeling/run_tvpvar_connectedness.R <input_csv> <output_dir> [nlag] [nfore] [columns_csv] [rds_output_dir]",
       "",
       "Runs ConnectednessApproach TVP-VAR on a complete volatility panel.",
       "When columns_csv is supplied, only those comma-separated variables",
@@ -21,7 +21,7 @@ if (length(args) < 2) {
     paste(
       "Usage:",
       "Rscript r/modeling/run_tvpvar_connectedness.R",
-      "<input_csv> <output_dir> [nlag] [nfore] [columns_csv]",
+      "<input_csv> <output_dir> [nlag] [nfore] [columns_csv] [rds_output_dir]",
       sep = " "
     )
   )
@@ -38,8 +38,10 @@ selected_columns <- if (length(args) >= 5) {
 } else {
   character(0)
 }
+rds_output_dir <- ifelse(length(args) >= 6, args[[6]], output_dir)
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(rds_output_dir, recursive = TRUE, showWarnings = FALSE)
 
 raw_data <- readr::read_csv(input_csv, show_col_types = FALSE)
 
@@ -90,7 +92,7 @@ dca <- ConnectednessApproach::ConnectednessApproach(
   )
 )
 
-saveRDS(dca, file.path(output_dir, paste0("tvpvar_connectedness_h", nfore, ".rds")))
+saveRDS(dca, file.path(rds_output_dir, paste0("tvpvar_connectedness_h", nfore, ".rds")))
 
 write_component <- function(component, name) {
   if (is.null(component)) {

@@ -12,41 +12,48 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "code" / "src"))
 
-from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT  # noqa: E402
-from thesis.table_output import write_registered_table  # noqa: E402
-from thesis.tables.common import add_sentiment_measures, read_daily_time_series  # noqa: E402
+from thesis.paths import PROCESSED_DATA_DIR, PROJECT_ROOT as THESIS_ROOT, TABLES_DIR  # noqa: E402
+from thesis.table_output import write_dataframe  # noqa: E402
+from thesis.tables.common import read_daily_time_series  # noqa: E402
 from thesis.tables.egarch_eda import (  # noqa: E402
     make_egarch_eda_figures,
-    table_02_return_sentiment_descriptives,
-    table_03_pre_estimation_diagnostics,
-    table_04_arma_lag_order_selection,
+    table_02a_full_sample_descriptives,
+    table_02b_restricted_sample_descriptives,
+    table_03_combined_pre_estimation_diagnostics,
 )
+from thesis.tables.model_inputs import prepare_egarch_full_input, prepare_egarch_restricted_input  # noqa: E402
 
 
 DEFAULT_INPUT_CSV = PROCESSED_DATA_DIR / "combined_time_series.csv"
+DEFAULT_OUTPUT_DIR = TABLES_DIR / "armax_egarchx"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate ARMAX-EGARCHX EDA tables and figures.")
     parser.add_argument("--input-csv", type=Path, default=DEFAULT_INPUT_CSV)
-    parser.add_argument("--max-p", type=int, default=3)
-    parser.add_argument("--max-q", type=int, default=3)
     parser.add_argument("--skip-figures", action="store_true")
-    parser.add_argument("--formats", nargs="+", default=["csv", "tex"], choices=["csv", "tex", "md"])
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    df = add_sentiment_measures(read_daily_time_series(args.input_csv))
+    source = read_daily_time_series(args.input_csv)
+    df_full = prepare_egarch_full_input(source)
+    df_restricted = prepare_egarch_restricted_input(source)
 
-    outputs = []
-    outputs.extend(write_registered_table(2, table_02_return_sentiment_descriptives(df), formats=args.formats))
-    outputs.extend(write_registered_table(3, table_03_pre_estimation_diagnostics(df), formats=args.formats))
-    outputs.extend(write_registered_table(4, table_04_arma_lag_order_selection(df, max_p=args.max_p, max_q=args.max_q), formats=args.formats))
+    outputs = [
+        write_dataframe(df_full, args.output_dir / "armax_egarchx_full_dataset.csv"),
+        write_dataframe(df_restricted, args.output_dir / "armax_egarchx_restricted_dataset.csv"),
+        write_dataframe(df_restricted, args.output_dir / "armax_egarchx_dataset.csv"),
+        write_dataframe(table_02a_full_sample_descriptives(df_full), args.output_dir / "armax_egarchx_full_descriptives.csv"),
+        write_dataframe(table_02b_restricted_sample_descriptives(df_restricted), args.output_dir / "armax_egarchx_restricted_descriptives.csv"),
+        write_dataframe(table_02b_restricted_sample_descriptives(df_restricted), args.output_dir / "armax_egarchx_descriptives.csv"),
+        write_dataframe(table_03_combined_pre_estimation_diagnostics(df_full, df_restricted), args.output_dir / "armax_egarchx_pre_estimation_diagnostics.csv"),
+    ]
 
     if not args.skip_figures:
-        outputs.extend(make_egarch_eda_figures(df))
+        outputs.extend(make_egarch_eda_figures(source))
 
     for path in outputs:
         print(path.relative_to(THESIS_ROOT))

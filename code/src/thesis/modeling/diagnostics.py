@@ -73,10 +73,29 @@ def missing_spans(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["variable", "start_date"])
 
 def descriptive_statistics(df: pd.DataFrame) -> pd.DataFrame:
+    from thesis.tables.common import descriptive_stats_table
     numeric = df.select_dtypes(include=[np.number])
-    desc = numeric.describe(percentiles=[0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99]).T
-    desc.insert(0, "variable", desc.index)
-    return desc.reset_index(drop=True)
+    # The descriptive_stats_table returns rows like:
+    # [{"variable": col, "statistic": "mean", "value": X}, ...]
+    # But for a flat wide table like descriptive_statistics used to be, we should pivot it
+    stats_long = descriptive_stats_table(df, numeric.columns)
+    
+    # Pivot to wide format: rows=variable, columns=statistic
+    stats_wide = stats_long.pivot(index="variable", columns="statistic", values="value").reset_index()
+    
+    # Missing count is currently duplicated across all statistics in the long format, 
+    # let's extract it and add it as a standalone column
+    missing_counts = stats_long.drop_duplicates(subset=["variable"])[["variable", "missing"]]
+    
+    # Merge back and clean up
+    result = stats_wide.merge(missing_counts, on="variable", how="left")
+    
+    # Define preferred column order
+    preferred_order = [
+        "variable", "N", "missing", "mean", "standard_deviation", 
+        "min", "max", "skewness", "kurtosis", "jarque_bera", "jarque_bera_p_value"
+    ]
+    return result[[col for col in preferred_order if col in result.columns]]
 
 def outlier_summary(df: pd.DataFrame) -> pd.DataFrame:
     rows: list[dict[str, object]] = []

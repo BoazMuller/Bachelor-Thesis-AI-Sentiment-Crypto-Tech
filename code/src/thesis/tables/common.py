@@ -17,9 +17,13 @@ GDELT_SENTIMENT = "sentiment_gdelt_sentiment_compound"
 REDDIT_SENTIMENT = "sentiment_reddit_sentiment_compound"
 RAW_AIS = "raw_ais"
 EXPECTATION_ADJUSTED_AIS = "expectation_adjusted_ais"
-ROBUST_EXPECTATION_ADJUSTED_AIS = "robust_expectation_adjusted_ais"
 INVERTED_METACULUS = "metaculus_inverted_days_until_median"
 LAGGED_EXPECTATION_ADJUSTED_AIS = "lagged_expectation_adjusted_ais"
+
+KALSHI_DIFF = "kalshi_before_2030_diff"
+INVERTED_METACULUS_DIFF = "metaculus_inverted_days_until_median_diff"
+LOG_EPU = "log_epu"
+LOG_GPR = "log_gpr"
 
 RETURN_COLUMNS = [
     "bitcoin_adj_close_log_return",
@@ -27,16 +31,13 @@ RETURN_COLUMNS = [
 ]
 
 BASELINE_CONTROLS = [
-    "kalshi_before_2030",
-    INVERTED_METACULUS,
+    KALSHI_DIFF,
+    INVERTED_METACULUS_DIFF,
     "sp500_adj_close_log_return",
     "vix_close",
-]
-
-ROBUST_CONTROLS = BASELINE_CONTROLS + [
-    "epu",
+    LOG_EPU,
     "dxy_close_log_return",
-    "gpr",
+    LOG_GPR,
 ]
 
 SOURCE_SENTIMENT_COLUMNS = [GDELT_SENTIMENT, REDDIT_SENTIMENT]
@@ -74,6 +75,14 @@ def add_sentiment_measures(df: pd.DataFrame) -> pd.DataFrame:
             enriched["metaculus_recency_weighted_days_until_median"],
             errors="coerce",
         )
+    if "kalshi_before_2030" in enriched.columns:
+        enriched[KALSHI_DIFF] = enriched["kalshi_before_2030"].diff()
+    if INVERTED_METACULUS in enriched.columns:
+        enriched[INVERTED_METACULUS_DIFF] = enriched[INVERTED_METACULUS].diff()
+    if "epu" in enriched.columns:
+        enriched[LOG_EPU] = np.log(pd.to_numeric(enriched["epu"], errors="coerce"))
+    if "gpr" in enriched.columns:
+        enriched[LOG_GPR] = np.log(pd.to_numeric(enriched["gpr"], errors="coerce"))
 
     dfm_result = construct_ais(enriched)
     enriched[RAW_AIS] = dfm_result.scores
@@ -82,13 +91,40 @@ def add_sentiment_measures(df: pd.DataFrame) -> pd.DataFrame:
         dependent=RAW_AIS,
         controls=BASELINE_CONTROLS,
     )
-    enriched[ROBUST_EXPECTATION_ADJUSTED_AIS] = residualize_series(
-        enriched,
-        dependent=RAW_AIS,
-        controls=ROBUST_CONTROLS,
-    )
     enriched[LAGGED_EXPECTATION_ADJUSTED_AIS] = enriched[EXPECTATION_ADJUSTED_AIS].shift(1)
     return enriched
+
+def expectation_adjusted_sample(
+    df: pd.DataFrame,
+    *,
+    include_lagged: bool = False,
+    extra_columns: Sequence[str] = (),
+) -> pd.DataFrame:
+    enriched = _ensure_sentiment_measures(df)
+    required = [EXPECTATION_ADJUSTED_AIS, *extra_columns]
+    if include_lagged:
+        required.append(LAGGED_EXPECTATION_ADJUSTED_AIS)
+    return _complete_sample(enriched, required)
+
+def raw_ais_sample(
+    df: pd.DataFrame,
+    *,
+    extra_columns: Sequence[str] = (),
+) -> pd.DataFrame:
+    enriched = _ensure_sentiment_measures(df)
+    return _complete_sample(enriched, [RAW_AIS, *extra_columns])
+
+def _ensure_sentiment_measures(df: pd.DataFrame) -> pd.DataFrame:
+    required = {RAW_AIS, EXPECTATION_ADJUSTED_AIS, LAGGED_EXPECTATION_ADJUSTED_AIS}
+    if required.issubset(df.columns):
+        return df.copy()
+    return add_sentiment_measures(df)
+
+def _complete_sample(df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
+    required = [column for column in columns if column in df.columns]
+    if not required:
+        return df.copy().reset_index(drop=True)
+    return df.dropna(subset=required).reset_index(drop=True)
 
 def construct_ais(df: pd.DataFrame) -> DynamicFactorConstruction:
     available = [column for column in SOURCE_SENTIMENT_COLUMNS if column in df.columns]

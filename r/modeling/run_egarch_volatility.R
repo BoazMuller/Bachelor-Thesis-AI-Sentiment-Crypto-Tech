@@ -21,12 +21,12 @@ source("r/requirements.R")
 input_csv <- ifelse(
   length(args) >= 1,
   args[[1]],
-  "results/models/tvpvar_connectedness/first_stage_return_panel.csv"
+  "results/tables/tvpvar_connectedness/tvpvar_connectedness_return_dataset.csv"
 )
 output_dir <- ifelse(
   length(args) >= 2,
   args[[2]],
-  "results/models/tvpvar_connectedness"
+  "results/tables/tvpvar_connectedness"
 )
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -175,9 +175,9 @@ for (asset_name in names(asset_specs)) {
 volatility_panel <- volatility_panel |>
   tidyr::drop_na()
 
-readr::write_csv(volatility_panel, file.path(output_dir, "conditional_volatility_panel.csv"))
+readr::write_csv(volatility_panel, file.path(output_dir, "tvpvar_connectedness_dataset.csv"))
 readr::write_csv(dplyr::bind_rows(long_volatility_rows), file.path(output_dir, "egarch_volatility_long.csv"))
 readr::write_csv(dplyr::bind_rows(coefficient_rows), file.path(output_dir, "egarch_volatility_coefficients.csv"))
-readr::write_csv(dplyr::bind_rows(diagnostic_rows), file.path(output_dir, "egarch_volatility_diagnostics.csv"))
+readr::write_csv(dplyr::bind_rows(diagnostic_rows), file.path(output_dir, "egarch_volatility_post_estimation_diagnostics.csv"))
 
 message("Wrote plain EGARCH(1,1) volatility outputs to ", output_dir)

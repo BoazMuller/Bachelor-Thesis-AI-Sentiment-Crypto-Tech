@@ -126,7 +126,7 @@ If the RoBERTa output already exists and should be regenerated:
 python scripts/modeling/run_roberta_sentiment.py --force
 ```
 
-### 5. Build And Validate The Processed Time Series
+### 5. Build And Validate The Processed Time Series (Validation Step 1 of 2)
 
 ```bash
 python scripts/preparation/build_combined_time_series.py
@@ -158,9 +158,11 @@ Rscript r/modeling/run_armax_egarchx.R
 python scripts/reporting/make_armax_egarchx_model_tables.py
 ```
 
-The ARMAX-EGARCHX stage uses BIC-selected ARMA mean lags, EGARCH(1,1),
-Student-t innovations, and lagged AI sentiment in both the mean and variance
-equations.
+The ARMAX-EGARCHX stage uses BIC-selected ARMA mean lags for the
+expectation-adjusted AIS benchmark specification, EGARCH(1,1), Student-t
+innovations, and lagged AI sentiment in both the mean and variance equations.
+Raw AIS robustness specifications reuse the same asset-specific benchmark ARMA
+lag orders so the robustness comparison changes only the sentiment measure.
 
 ### 8. Run Plain EGARCH And TVP-VAR Connectedness Models
 
@@ -170,6 +172,7 @@ Rscript r/modeling/run_egarch_volatility.R
 python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-only
 python scripts/modeling/run_tvpvar_connectedness_models.py
 python scripts/reporting/make_tvpvar_connectedness_tables.py
+python scripts/reporting/plot_tvpvar_connectedness_timeseries.py
 ```
 
 The TVP-VAR stage uses plain EGARCH(1,1) conditional volatilities with no ARMA
@@ -182,7 +185,15 @@ separately for each volatility system.
 python scripts/reporting/make_spillover_regression_tables.py
 ```
 
-### 10. Optional Checks
+### 10. Run Final Validation And Compile Final Data Inventory (Validation Step 2 of 2)
+
+Once all models have been estimated and conditional volatility and connectedness measures have been generated, run the validation script again. This compiles the final, completed data inventory table containing observation counts and sample ranges for the conditional volatility and connectedness metrics.
+
+```bash
+python scripts/validation/check_time_series_data.py
+```
+
+### 11. Optional Checks
 
 ```bash
 pytest

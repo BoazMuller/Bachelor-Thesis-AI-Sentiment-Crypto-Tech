@@ -2,20 +2,22 @@ from __future__ import annotations
 
 import pandas as pd
 
+from thesis.paths import PROJECT_ROOT
 from thesis.data.inventory import metadata_for_column, variable_inventory
 from thesis.tables.common import (
     DATE_COLUMN,
     EXPECTATION_ADJUSTED_AIS,
     RAW_AIS,
-    ROBUST_EXPECTATION_ADJUSTED_AIS,
 )
 
 def table_01_data_inventory(df: pd.DataFrame) -> pd.DataFrame:
-    inventory = variable_inventory(df)
+    inventory = variable_inventory(df, project_root=PROJECT_ROOT)
     if "role" not in inventory.columns and "expected_sign_or_role" in inventory.columns:
         inventory["role"] = inventory["expected_sign_or_role"]
     if "frequency" not in inventory.columns and "transformed_frequency" in inventory.columns:
         inventory["frequency"] = inventory["transformed_frequency"]
+    if "used_in_models" not in inventory.columns:
+        inventory["used_in_models"] = ""
     if "observations" not in inventory.columns and "final_usable_observations" in inventory.columns:
         inventory["observations"] = inventory["final_usable_observations"]
     if "missing" not in inventory.columns and "missing_days" in inventory.columns:
@@ -32,6 +34,7 @@ def table_01_data_inventory(df: pd.DataFrame) -> pd.DataFrame:
         [
             "variable",
             "source",
+            "used_in_models",
             "role",
             "date_range",
             "frequency",
@@ -67,8 +70,6 @@ def _notes_for_variable(column: str) -> str:
         return "One-sided filtered one-factor DFM score from standardized GDELT/news and Reddit/social-media sentiment"
     if column == EXPECTATION_ADJUSTED_AIS:
         return "Residual from baseline expectation orthogonalization"
-    if column == ROBUST_EXPECTATION_ADJUSTED_AIS:
-        return "Residual from robustness orthogonalization including macro-risk controls"
     meta = metadata_for_column(column)
     if hasattr(meta, "notes") and meta.notes:
         return meta.notes

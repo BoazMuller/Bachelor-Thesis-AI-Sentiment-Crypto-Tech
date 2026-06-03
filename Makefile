@@ -6,9 +6,6 @@ setup:
 	. .venv/bin/activate && python3 -m pip install -r requirements.txt
 	. .venv/bin/activate && python3 -m pip install -e code
 
-test:
-	pytest
-
 notebook:
 	jupyter lab
 

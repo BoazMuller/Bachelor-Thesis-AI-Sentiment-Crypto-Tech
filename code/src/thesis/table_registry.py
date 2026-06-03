@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from thesis.paths import FIGURES_DIR, MODELS_DIR, TABLES_DIR
+from thesis.paths import FIGURES_DIR, TABLES_DIR
 
 
 @dataclass(frozen=True)
@@ -35,10 +35,10 @@ class TableSpec:
 
 
 TABLE_REGISTRY: dict[int, TableSpec] = {
-    1: TableSpec(1, "Data inventory and transformation summary", "01_data_inventory", "table_01_data_inventory_transformation_summary"),
+    1: TableSpec(1, "Data sources, definitions, transformations, and availability", "01_data_inventory", "table_01_data_sources_definitions_transformations_availability"),
     2: TableSpec(2, "Return and sentiment descriptive statistics", "02_armax_egarchx", "table_02_return_sentiment_descriptives"),
     3: TableSpec(3, "Pre-estimation time-series diagnostics", "02_armax_egarchx", "table_03_pre_estimation_time_series_diagnostics"),
-    4: TableSpec(4, "ARMA lag-order selection", "02_armax_egarchx", "table_04_arma_lag_order_selection"),
+    4: TableSpec(4, "ARMAX-EGARCHX BIC lag-order selection", "02_armax_egarchx", "armax_egarchx_lag_selection"),
     5: TableSpec(5, "ARMAX-EGARCHX estimation results", "02_armax_egarchx", "table_05_armax_egarchx_estimation_results"),
     6: TableSpec(6, "Post-estimation diagnostics", "02_armax_egarchx", "table_06_post_estimation_diagnostics"),
     7: TableSpec(7, "First-stage EGARCH volatility extraction summary", "03_tvpvar_connectedness", "table_07_egarch_volatility_extraction_summary"),
@@ -64,6 +64,13 @@ TABLE_REGISTRY: dict[int, TableSpec] = {
     27: TableSpec(27, "Headline contemporaneous spillover regression results", "06_spillover_regressions", "table_27_baseline_spillover_regression_results"),
     28: TableSpec(28, "Lagged sentiment robustness results", "06_spillover_regressions", "table_28_lagged_sentiment_robustness_results"),
     29: TableSpec(29, "Raw AIS robustness regression comparison", "06_spillover_regressions", "table_29_raw_ais_versus_residual_ais_regression_comparison"),
+    30: TableSpec(30, "RoBERTa daily text counts", "RoBERTa", "roberta_daily_counts"),
+    31: TableSpec(31, "RoBERTa daily count descriptive statistics", "RoBERTa", "roberta_count_descriptives"),
+    32: TableSpec(32, "RoBERTa 100-sample manual verification table", "RoBERTa", "roberta_validation_sample_100"),
+    33: TableSpec(33, "RoBERTa extreme sentiment examples", "RoBERTa", "roberta_extreme_sentiment"),
+    34: TableSpec(34, "RoBERTa sentiment label distribution", "RoBERTa", "roberta_label_distribution"),
+    35: TableSpec(35, "RoBERTa daily text counts (shifted to trading days)", "RoBERTa", "roberta_daily_counts_shifted"),
+    36: TableSpec(36, "RoBERTa daily count descriptive statistics (shifted to trading days)", "RoBERTa", "roberta_count_descriptives_shifted"),
 }
 
 
@@ -75,19 +82,13 @@ def get_table_spec(number: int) -> TableSpec:
 
 
 def ensure_output_structure() -> None:
-    for spec in TABLE_REGISTRY.values():
-        spec.output_dir.mkdir(parents=True, exist_ok=True)
+    TABLE_REGISTRY[1].output_dir.mkdir(parents=True, exist_ok=True)
     for folder in [
         "armax_egarchx",
         "tvpvar_connectedness",
-        "sentiment_dfm_em",
+        "dfm_em",
         "expectation_adjusted_sentiment",
         "spillover_regressions",
+        "RoBERTa",
     ]:
         (FIGURES_DIR / folder).mkdir(parents=True, exist_ok=True)
-    for folder in [
-        "armax_egarchx",
-        "tvpvar_connectedness",
-        "expectation_adjusted_sentiment",
-    ]:
-        (MODELS_DIR / folder).mkdir(parents=True, exist_ok=True)

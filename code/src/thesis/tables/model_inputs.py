@@ -8,19 +8,31 @@ from thesis.tables.common import (
     LAGGED_EXPECTATION_ADJUSTED_AIS,
     RAW_AIS,
     RETURN_COLUMNS,
-    ROBUST_EXPECTATION_ADJUSTED_AIS,
     add_sentiment_measures,
+    expectation_adjusted_sample,
 )
 
-def prepare_egarch_input(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_egarch_restricted_input(df: pd.DataFrame) -> pd.DataFrame:
+    enriched = expectation_adjusted_sample(
+        df,
+        include_lagged=True,
+        extra_columns=RETURN_COLUMNS,
+    )
+    columns = [DATE_COLUMN] + [column for column in RETURN_COLUMNS if column in enriched.columns] + [
+        EXPECTATION_ADJUSTED_AIS,
+        LAGGED_EXPECTATION_ADJUSTED_AIS,
+    ]
+    return enriched[columns].reset_index(drop=True)
+
+def prepare_egarch_full_input(df: pd.DataFrame) -> pd.DataFrame:
     enriched = add_sentiment_measures(df)
     columns = [DATE_COLUMN] + [column for column in RETURN_COLUMNS if column in enriched.columns] + [
         RAW_AIS,
-        EXPECTATION_ADJUSTED_AIS,
-        ROBUST_EXPECTATION_ADJUSTED_AIS,
-        LAGGED_EXPECTATION_ADJUSTED_AIS,
     ]
-    return enriched[columns].dropna().reset_index(drop=True)
+    return enriched[columns].dropna(subset=columns).reset_index(drop=True)
+
+def prepare_egarch_input(df: pd.DataFrame) -> pd.DataFrame:
+    return prepare_egarch_restricted_input(df)
 
 def prepare_tvpvar_return_input(df: pd.DataFrame) -> pd.DataFrame:
     columns = [

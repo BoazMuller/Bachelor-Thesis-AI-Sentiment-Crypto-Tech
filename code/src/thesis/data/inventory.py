@@ -137,6 +137,16 @@ VARIABLE_METADATA: dict[str, VariableMetadata] = {
         units="Index value",
         treatment_of_missing_values="Restricted to the analysis window and matched to trading days",
     ),
+    "log_epu": VariableMetadata(
+        symbol="log(EPU_t)",
+        source="Economic Policy Uncertainty daily policy index",
+        raw_frequency="Daily calendar",
+        transformed_frequency="Trading day",
+        transformation="Natural logarithm of the daily policy index",
+        expected_sign_or_role="Policy uncertainty control (log-transformed to mitigate outliers)",
+        units="Log points",
+        treatment_of_missing_values="Inherits EPU missing value treatment",
+    ),
     "gpr": VariableMetadata(
         symbol="GPR_t",
         source="Geopolitical Risk daily index",
@@ -146,6 +156,16 @@ VARIABLE_METADATA: dict[str, VariableMetadata] = {
         expected_sign_or_role="Geopolitical risk control; expected to capture geopolitical stress",
         units="Index value",
         treatment_of_missing_values="Restricted to the analysis window and matched to trading days",
+    ),
+    "log_gpr": VariableMetadata(
+        symbol="log(GPR_t)",
+        source="Geopolitical Risk daily index",
+        raw_frequency="Daily calendar",
+        transformed_frequency="Trading day",
+        transformation="Natural logarithm of the GPRD level",
+        expected_sign_or_role="Geopolitical risk control (log-transformed to mitigate outliers)",
+        units="Log points",
+        treatment_of_missing_values="Inherits GPR missing value treatment",
     ),
     "sentiment_gdelt_sentiment_compound": VariableMetadata(
         symbol="S_News,t",
@@ -178,6 +198,16 @@ VARIABLE_METADATA: dict[str, VariableMetadata] = {
         units="Market price / implied probability scale",
         treatment_of_missing_values="Forward-filled after first observed value; pre-first-observation dates remain missing",
     ),
+    "kalshi_before_2030_diff": VariableMetadata(
+        symbol="ΔKalshi_t",
+        source="Kalshi AGI-related market price",
+        raw_frequency="Intermittent daily market observations",
+        transformed_frequency="Trading day",
+        transformation="First difference of Before 2030 contract price",
+        expected_sign_or_role="Prediction-market AI expectation control (differenced); positive changes imply increasing probability of AGI before 2030",
+        units="Percentage points",
+        treatment_of_missing_values="First observation is missing after differencing",
+    ),
     "metaculus_recency_weighted_days_until_median": VariableMetadata(
         symbol="MetaculusDays_t",
         source="Metaculus AGI date forecast history",
@@ -198,6 +228,16 @@ VARIABLE_METADATA: dict[str, VariableMetadata] = {
         units="Negative days",
         treatment_of_missing_values="Inherits Metaculus alignment and forward-fill rule",
     ),
+    "metaculus_inverted_days_until_median_diff": VariableMetadata(
+        symbol="ΔMetaculusSooner_t",
+        source="Derived from Metaculus AGI date forecast history",
+        raw_frequency="Intermittent forecast updates",
+        transformed_frequency="Trading day",
+        transformation="First difference of inverted Metaculus days-until-median",
+        expected_sign_or_role="Forecast expectation control aligned with Kalshi direction (differenced)",
+        units="Days",
+        treatment_of_missing_values="First observation is missing after differencing",
+    ),
     "raw_ais": VariableMetadata(
         symbol="AIS_t",
         source="One-factor dynamic factor model of standardized GDELT/news and Reddit/social-media sentiment",
@@ -214,22 +254,11 @@ VARIABLE_METADATA: dict[str, VariableMetadata] = {
         source="Residual from AIS orthogonalization regression",
         raw_frequency="Trading day",
         transformed_frequency="Trading day",
-        transformation="Residual from AIS on Kalshi, inverted Metaculus, S&P 500 return, and VIX",
+        transformation="Residual from AIS on Kalshi diff, inverted Metaculus diff, S&P 500 return, VIX, log(EPU), DXY return, and log(GPR)",
         expected_sign_or_role="Headline sentiment variable for spillover regressions",
         units="OLS residual",
         treatment_of_missing_values="Complete-case sample for AIS and baseline controls",
         notes="Benchmark sentiment variable throughout the thesis",
-    ),
-    "robust_expectation_adjusted_ais": VariableMetadata(
-        symbol="EAIS_robust,t",
-        source="Residual from expanded AIS orthogonalization regression",
-        raw_frequency="Trading day",
-        transformed_frequency="Trading day",
-        transformation="Residual from AIS on Kalshi, inverted Metaculus, S&P 500 return, VIX, EPU, DXY return, and GPR",
-        expected_sign_or_role="Robustness version of expectation-adjusted AI sentiment",
-        units="OLS residual",
-        treatment_of_missing_values="Complete-case sample for AIS and expanded controls",
-        notes="Robustness check, not the headline sentiment variable",
     ),
     "lagged_expectation_adjusted_ais": VariableMetadata(
         symbol="EAIS_t-1",
@@ -270,6 +299,7 @@ INVENTORY_COLUMNS = [
     "variable",
     "symbol",
     "source",
+    "used_in_models",
     "raw_frequency",
     "transformed_frequency",
     "transformation",
@@ -289,6 +319,29 @@ INVENTORY_COLUMNS = [
 def metadata_for_column(column: str) -> VariableMetadata:
     if column in VARIABLE_METADATA:
         return VARIABLE_METADATA[column]
+    if column.endswith("_conditional_volatility"):
+        asset = column.removesuffix("_conditional_volatility")
+        return VariableMetadata(
+            symbol=f"sigma_{asset},t",
+            source="Plain EGARCH(1,1) fitted model",
+            raw_frequency="Trading day returns",
+            transformed_frequency="Trading day",
+            transformation="Conditional standard deviation estimated from EGARCH(1,1)",
+            expected_sign_or_role="Volatility input for TVP-VAR connectedness systems",
+            units="Return standard deviation",
+            treatment_of_missing_values="Complete-case EGARCH volatility sample",
+        )
+    if _is_connectedness_measure(column):
+        return VariableMetadata(
+            symbol="C_t",
+            source="R ConnectednessApproach TVP-VAR",
+            raw_frequency="Trading day EGARCH conditional volatilities",
+            transformed_frequency="Trading day",
+            transformation="Generalized FEVD-based connectedness measure from TVP-VAR",
+            expected_sign_or_role="Dependent variable in connectedness-on-sentiment regressions",
+            units="Share / percentage of forecast error variance",
+            treatment_of_missing_values="Complete-case connectedness output sample",
+        )
     if column.endswith(RETURN_SUFFIX):
         base = column[: -len(RETURN_SUFFIX)]
         base_meta = VARIABLE_METADATA.get(base)
@@ -329,12 +382,41 @@ def read_time_series(path: Path) -> pd.DataFrame:
     return df.sort_values("date").reset_index(drop=True)
 
 def variable_inventory(df: pd.DataFrame, project_root: Path | None = None) -> pd.DataFrame:
+    if project_root is None:
+        from thesis.paths import PROJECT_ROOT
+        project_root = PROJECT_ROOT
+
+    if project_root:
+        vol_path = project_root / "results" / "tables" / "tvpvar_connectedness" / "tvpvar_connectedness_dataset.csv"
+        if vol_path.exists():
+            vol_df = pd.read_csv(vol_path)
+            vol_df["date"] = pd.to_datetime(vol_df["date"])
+            cols_to_use = [col for col in vol_df.columns if col not in df.columns or col == "date"]
+            if len(cols_to_use) > 1:
+                df = pd.merge(df, vol_df[cols_to_use], on="date", how="left")
+
+        conn_path = project_root / "results" / "tables" / "tvpvar_connectedness" / "connectedness_regression_dataset.csv"
+        if conn_path.exists():
+            conn_df = pd.read_csv(conn_path)
+            conn_df["date"] = pd.to_datetime(conn_df["date"])
+            if "benchmark_tci_tci" in conn_df.columns and "tvpvar_connectedness_measures" not in df.columns:
+                df = pd.merge(
+                    df,
+                    conn_df[["date", "benchmark_tci_tci"]].rename(columns={"benchmark_tci_tci": "tvpvar_connectedness_measures"}),
+                    on="date",
+                    how="left"
+                )
+
     raw_counts = raw_observation_counts(project_root, df) if project_root else {}
     rows: list[dict[str, object]] = []
 
     inventory_variables = list(df.columns)
     for planned_variable in [
-        "egarch_conditional_volatility",
+        "bitcoin_conditional_volatility",
+        "ndx_conditional_volatility",
+        "nvda_conditional_volatility",
+        "googl_conditional_volatility",
+        "msft_conditional_volatility",
         "tvpvar_connectedness_measures",
     ]:
         if planned_variable not in inventory_variables:
@@ -364,6 +446,7 @@ def variable_inventory(df: pd.DataFrame, project_root: Path | None = None) -> pd
             "variable": column,
             "symbol": meta.symbol,
             "source": meta.source,
+            "used_in_models": models_using_variable(column),
             "raw_frequency": meta.raw_frequency,
             "transformed_frequency": meta.transformed_frequency,
             "transformation": meta.transformation,
@@ -402,7 +485,11 @@ def raw_observation_counts(
 
     counts["date"] = counts.get("sp500_adj_close", "not available")
     for planned_variable in [
-        "egarch_conditional_volatility",
+        "bitcoin_conditional_volatility",
+        "ndx_conditional_volatility",
+        "nvda_conditional_volatility",
+        "googl_conditional_volatility",
+        "msft_conditional_volatility",
         "tvpvar_connectedness_measures",
     ]:
         counts.setdefault(planned_variable, "not yet generated")
@@ -521,3 +608,55 @@ def _format_date(value: object) -> str:
     if pd.isna(value):
         return "not available"
     return pd.Timestamp(value).strftime("%Y-%m-%d")
+
+def models_using_variable(column: str) -> str:
+    models: list[str] = []
+    if column == "date":
+        models = [
+            "armax_egarchx",
+            "tvpvar_connectedness",
+            "dfm_em",
+            "expectation_adjusted_sentiment",
+            "spillover_regressions",
+        ]
+    elif column in {
+        "sentiment_gdelt_sentiment_compound",
+        "sentiment_reddit_sentiment_compound",
+    }:
+        models = ["dfm_em", "expectation_adjusted_sentiment"]
+    elif column in {"raw_ais", "expectation_adjusted_ais"}:
+        models = ["armax_egarchx", "expectation_adjusted_sentiment", "spillover_regressions"]
+        if column == "raw_ais":
+            models.insert(0, "dfm_em")
+    elif column == "lagged_expectation_adjusted_ais":
+        models = ["armax_egarchx", "spillover_regressions"]
+    elif column.endswith("_conditional_volatility") or column == "egarch_conditional_volatility":
+        models = ["tvpvar_connectedness", "spillover_regressions"]
+    elif column == "tvpvar_connectedness_measures" or _is_connectedness_measure(column):
+        models = ["tvpvar_connectedness", "spillover_regressions"]
+    elif column.endswith("_log_return"):
+        models = []
+        if column in {"bitcoin_adj_close_log_return", "ndx_adj_close_log_return"}:
+            models = ["armax_egarchx", "tvpvar_connectedness"]
+        elif column in {
+            "nvda_adj_close_log_return",
+            "googl_adj_close_log_return",
+            "msft_adj_close_log_return",
+        }:
+            models = ["tvpvar_connectedness"]
+        if column in {
+            "sp500_adj_close_log_return",
+            "dxy_close_log_return",
+        }:
+            models.append("expectation_adjusted_sentiment")
+            models.append("spillover_regressions")
+    elif column in {"kalshi_before_2030", "kalshi_before_2030_diff", "metaculus_recency_weighted_days_until_median", "metaculus_inverted_days_until_median", "metaculus_inverted_days_until_median_diff", "vix_close", "epu", "log_epu", "gpr", "log_gpr"}:
+        models = ["expectation_adjusted_sentiment", "spillover_regressions"]
+    elif column.endswith("_adj_close") or column == "dxy_close":
+        models = ["data_preparation"]
+
+    return ", ".join(dict.fromkeys(models))
+
+def _is_connectedness_measure(column: str) -> bool:
+    lower = column.lower()
+    return any(token in lower for token in ("connectedness", "_tci_", "_to_", "_from_", "_net_", "_npdc_"))

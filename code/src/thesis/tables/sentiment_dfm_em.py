@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import jarque_bera, kurtosis, skew
@@ -15,6 +21,43 @@ from thesis.tables.common import (
     construct_ais,
     descriptive_stats_table,
 )
+
+def dfm_em_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    dfm_result = construct_ais(df)
+    dataset = df[[DATE_COLUMN] + [column for column in SOURCE_SENTIMENT_COLUMNS if column in df.columns]].copy()
+    dataset[RAW_AIS] = dfm_result.scores
+    return dataset
+
+def dfm_em_pre_estimation_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
+    return table_16_sentiment_source_correlation_matrix(df)
+
+def make_dfm_em_factor_comparison_plots(df: pd.DataFrame, output_dir: Path) -> list[Path]:
+    dataset = dfm_em_dataset(df)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for column in [column for column in SOURCE_SENTIMENT_COLUMNS if column in dataset.columns]:
+        ax.plot(dataset[DATE_COLUMN], dataset[column], label=SOURCE_LABELS.get(column, column), alpha=0.75)
+    ax.plot(dataset[DATE_COLUMN], dataset[RAW_AIS], label="raw_ais_dfm_factor", color="black", linewidth=1.4)
+    ax.set_title("DFM factor compared with raw source sentiment")
+    ax.legend(loc="best")
+    fig.tight_layout()
+    paths.append(_save_figure(fig, output_dir / "dfm_em_factor_vs_raw_sentiment.png"))
+
+    standardized = construct_ais(df).standardized_sources.copy()
+    standardized[DATE_COLUMN] = df[DATE_COLUMN].to_numpy()
+    standardized[RAW_AIS] = dataset[RAW_AIS].to_numpy()
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for column in [column for column in SOURCE_SENTIMENT_COLUMNS if column in standardized.columns]:
+        ax.plot(standardized[DATE_COLUMN], standardized[column], label=f"standardized_{SOURCE_LABELS.get(column, column)}", alpha=0.75)
+    ax.plot(standardized[DATE_COLUMN], standardized[RAW_AIS], label="raw_ais_dfm_factor", color="black", linewidth=1.4)
+    ax.set_title("DFM factor compared with standardized sentiment inputs")
+    ax.legend(loc="best")
+    fig.tight_layout()
+    paths.append(_save_figure(fig, output_dir / "dfm_em_factor_vs_standardized_inputs.png"))
+
+    return paths
 
 SOURCE_LABELS = {
     GDELT_SENTIMENT: "gdelt_news",
@@ -359,3 +402,8 @@ def table_18_ais_construction_validation(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+def _save_figure(fig: plt.Figure, path: Path) -> Path:
+    fig.savefig(path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    return path

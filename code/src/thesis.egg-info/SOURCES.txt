@@ -27,6 +27,7 @@ src/thesis/tables/model_inputs.py
 src/thesis/tables/sentiment_dfm_em.py
 src/thesis/tables/spillover_regressions.py
 src/thesis/tables/tvpvar_connectedness.py
+tests/test_output_pipeline.py
 tests/test_paths.py
 tests/test_sentiment.py
 tests/test_sentiment_dfm_em_tables.py

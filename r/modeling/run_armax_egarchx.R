@@ -7,8 +7,9 @@ if ("--help" %in% args || "-h" %in% args) {
       "Rscript r/modeling/run_armax_egarchx.R [input_csv] [output_dir] [max_p] [max_q]",
       "",
       "Fits BTC and NASDAQ-100 ARMAX-EGARCHX models with EGARCH(1,1),",
-      "Student-t innovations, BIC-selected ARMA mean lags, and lagged",
-      "sentiment in both the mean and variance equations.",
+      "Student-t innovations, benchmark BIC-selected ARMA mean lags, and",
+      "lagged sentiment in both the mean and variance equations. Robustness",
+      "models reuse the benchmark asset-specific ARMA lag order.",
       sep = "\n"
     ),
     "\n"
@@ -21,23 +22,35 @@ source("r/requirements.R")
 input_csv <- ifelse(
   length(args) >= 1,
   args[[1]],
-  "results/models/armax_egarchx/egarch_input_returns_sentiment.csv"
+  "results/tables/armax_egarchx/armax_egarchx_dataset.csv"
 )
 output_dir <- ifelse(
   length(args) >= 2,
   args[[2]],
-  "results/models/armax_egarchx"
+  "results/tables/armax_egarchx"
 )
 max_p <- ifelse(length(args) >= 3, as.integer(args[[3]]), 3L)
 max_q <- ifelse(length(args) >= 4, as.integer(args[[4]]), 3L)
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-data <- readr::read_csv(input_csv, show_col_types = FALSE) |>
-  dplyr::mutate(
-    date = as.Date(.data$date),
-    lagged_raw_ais = dplyr::lag(.data$raw_ais)
-  )
+# Determine path to split datasets if available
+input_dir <- dirname(input_csv)
+restricted_csv <- file.path(input_dir, "armax_egarchx_restricted_dataset.csv")
+full_csv <- file.path(input_dir, "armax_egarchx_full_dataset.csv")
+use_split <- file.exists(restricted_csv) && file.exists(full_csv)
+
+if (use_split) {
+  message("Using split datasets: full sample for raw_ais and restricted sample for expectation-adjusted sentiment.")
+} else {
+  message("Using single input dataset: ", input_csv)
+  data <- readr::read_csv(input_csv, show_col_types = FALSE) |>
+    dplyr::mutate(
+      date = as.Date(.data$date),
+      lagged_raw_ais = dplyr::lag(.data$raw_ais),
+      lagged_expectation_adjusted_ais = dplyr::lag(.data$expectation_adjusted_ais)
+    )
+}
 
 asset_specs <- list(
   bitcoin = "bitcoin_adj_close_log_return",
@@ -204,71 +217,149 @@ extract_volatility <- function(fit, model_data, asset_name, specification_name) 
 
 for (asset_name in names(asset_specs)) {
   return_column <- asset_specs[[asset_name]]
+  benchmark_lag_order <- NULL
   for (specification_name in names(sentiment_specs)) {
     sentiment_column <- sentiment_specs[[specification_name]]
-    model_data <- data |>
+    if (use_split) {
+      if (specification_name == "benchmark_eais") {
+        spec_data <- readr::read_csv(restricted_csv, show_col_types = FALSE) |>
+          dplyr::mutate(
+            date = as.Date(.data$date),
+            lagged_expectation_adjusted_ais = dplyr::lag(.data$expectation_adjusted_ais)
+          )
+      } else {
+        spec_data <- readr::read_csv(full_csv, show_col_types = FALSE) |>
+          dplyr::mutate(
+            date = as.Date(.data$date),
+            lagged_raw_ais = dplyr::lag(.data$raw_ais)
+          )
+      }
+    } else {
+      spec_data <- data
+    }
+
+    model_data <- spec_data |>
       dplyr::select(date, dplyr::all_of(return_column), dplyr::all_of(sentiment_column)) |>
       tidyr::drop_na()
 
-    candidates <- list()
-    for (p in 0:max_p) {
-      for (q in 0:max_q) {
-        fit <- tryCatch(
-          fit_model(asset_name, return_column, specification_name, sentiment_column, p, q, model_data),
-          error = function(error) error
-        )
-        if (inherits(fit, "error")) {
+    if (specification_name == "benchmark_eais") {
+      candidates <- list()
+      for (p in 0:max_p) {
+        for (q in 0:max_q) {
+          fit <- tryCatch(
+            fit_model(asset_name, return_column, specification_name, sentiment_column, p, q, model_data),
+            error = function(error) error
+          )
+          if (inherits(fit, "error")) {
+            lag_rows[[length(lag_rows) + 1]] <- tibble::tibble(
+              asset = asset_name,
+              specification = specification_name,
+              p = p,
+              q = q,
+              bic = NA_real_,
+              converged = FALSE,
+              selected_by_bic = FALSE,
+              selected_for_estimation = FALSE,
+              selection_method = "benchmark_bic_grid",
+              nobs = nrow(model_data),
+              note = paste(class(fit)[1], fit$message, sep = ": ")
+            )
+            next
+          }
+
+          converged <- fit_converged(fit)
+          bic <- if (converged) as.numeric(rugarch::infocriteria(fit)["Bayes", 1]) else NA_real_
+          if (converged && !is.na(bic)) {
+            candidates[[length(candidates) + 1]] <- list(p = p, q = q, bic = bic, fit = fit)
+          }
           lag_rows[[length(lag_rows) + 1]] <- tibble::tibble(
             asset = asset_name,
             specification = specification_name,
             p = p,
             q = q,
-            bic = NA_real_,
-            converged = FALSE,
+            bic = bic,
+            converged = converged,
             selected_by_bic = FALSE,
+            selected_for_estimation = FALSE,
+            selection_method = "benchmark_bic_grid",
             nobs = nrow(model_data),
-            note = paste(class(fit)[1], fit$message, sep = ": ")
+            note = ifelse(converged, "", paste("Non-zero solver convergence code:", fit@fit$convergence))
           )
-          next
         }
+      }
 
-        converged <- fit_converged(fit)
-        bic <- if (converged) as.numeric(rugarch::infocriteria(fit)["Bayes", 1]) else NA_real_
-        if (converged && !is.na(bic)) {
-          candidates[[length(candidates) + 1]] <- list(p = p, q = q, bic = bic, fit = fit)
-        }
-        lag_rows[[length(lag_rows) + 1]] <- tibble::tibble(
-          asset = asset_name,
-          specification = specification_name,
-          p = p,
-          q = q,
-          bic = bic,
-          converged = converged,
-          selected_by_bic = FALSE,
-          nobs = nrow(model_data),
-          note = ifelse(converged, "", paste("Non-zero solver convergence code:", fit@fit$convergence))
+      valid_candidates <- candidates[!is.na(vapply(candidates, function(candidate) candidate$bic, numeric(1)))]
+      if (length(valid_candidates) == 0) {
+        stop("No converged candidate models for ", asset_name, " / ", specification_name)
+      }
+
+      selected_index <- which.min(vapply(valid_candidates, function(candidate) candidate$bic, numeric(1)))
+      selected <- valid_candidates[[selected_index]]
+      assert_fit_converged(selected$fit, asset_name, specification_name, selected$p, selected$q)
+      benchmark_lag_order <- list(p = selected$p, q = selected$q)
+
+      lag_rows <- lapply(lag_rows, function(row) {
+        row$selected_by_bic <- row$selected_by_bic | (
+          row$asset == asset_name &&
+          row$specification == specification_name &&
+          row$p == selected$p &&
+          row$q == selected$q
+        )
+        row$selected_for_estimation <- row$selected_for_estimation | (
+          row$asset == asset_name &&
+          row$specification == specification_name &&
+          row$p == selected$p &&
+          row$q == selected$q
+        )
+        row
+      })
+    } else {
+      if (is.null(benchmark_lag_order)) {
+        stop("Benchmark lag order must be selected before robustness models for ", asset_name)
+      }
+
+      fixed_p <- benchmark_lag_order$p
+      fixed_q <- benchmark_lag_order$q
+      fit <- tryCatch(
+        fit_model(asset_name, return_column, specification_name, sentiment_column, fixed_p, fixed_q, model_data),
+        error = function(error) error
+      )
+      if (inherits(fit, "error")) {
+        stop(
+          "Fixed-lag robustness model failed for ",
+          asset_name,
+          " / ",
+          specification_name,
+          " with ARMA(",
+          fixed_p,
+          ",",
+          fixed_q,
+          "): ",
+          fit$message
         )
       }
-    }
 
-    valid_candidates <- candidates[!is.na(vapply(candidates, function(candidate) candidate$bic, numeric(1)))]
-    if (length(valid_candidates) == 0) {
-      stop("No converged candidate models for ", asset_name, " / ", specification_name)
-    }
-
-    selected_index <- which.min(vapply(valid_candidates, function(candidate) candidate$bic, numeric(1)))
-    selected <- valid_candidates[[selected_index]]
-    assert_fit_converged(selected$fit, asset_name, specification_name, selected$p, selected$q)
-
-    lag_rows <- lapply(lag_rows, function(row) {
-      row$selected_by_bic <- row$selected_by_bic | (
-        row$asset == asset_name &&
-        row$specification == specification_name &&
-        row$p == selected$p &&
-        row$q == selected$q
+      selected <- list(
+        p = fixed_p,
+        q = fixed_q,
+        bic = if (fit_converged(fit)) as.numeric(rugarch::infocriteria(fit)["Bayes", 1]) else NA_real_,
+        fit = fit
       )
-      row
-    })
+      assert_fit_converged(selected$fit, asset_name, specification_name, selected$p, selected$q)
+      lag_rows[[length(lag_rows) + 1]] <- tibble::tibble(
+        asset = asset_name,
+        specification = specification_name,
+        p = selected$p,
+        q = selected$q,
+        bic = selected$bic,
+        converged = TRUE,
+        selected_by_bic = FALSE,
+        selected_for_estimation = TRUE,
+        selection_method = "fixed_to_benchmark_eais",
+        nobs = nrow(model_data),
+        note = paste0("Uses benchmark_eais ARMA(", selected$p, ",", selected$q, ") lag order")
+      )
+    }
 
     fit_rows[[length(fit_rows) + 1]] <- extract_coefficients(
       selected$fit,
@@ -295,7 +386,7 @@ for (asset_name in names(asset_specs)) {
 }
 
 readr::write_csv(dplyr::bind_rows(fit_rows), file.path(output_dir, "armax_egarchx_coefficients.csv"))
-readr::write_csv(dplyr::bind_rows(diagnostic_rows), file.path(output_dir, "armax_egarchx_diagnostics.csv"))
+readr::write_csv(dplyr::bind_rows(diagnostic_rows), file.path(output_dir, "armax_egarchx_post_estimation_diagnostics.csv"))
 readr::write_csv(dplyr::bind_rows(lag_rows), file.path(output_dir, "armax_egarchx_lag_selection.csv"))
 readr::write_csv(dplyr::bind_rows(volatility_rows), file.path(output_dir, "armax_egarchx_conditional_volatility.csv"))
 
