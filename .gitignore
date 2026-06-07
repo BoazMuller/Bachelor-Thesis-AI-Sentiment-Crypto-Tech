@@ -32,6 +32,9 @@ data/processed/*
 !data/**/.gitkeep
 !data/README.md
 
+#Thesis
+thesis/
+
 # Generated outputs
 results/figures/*
 results/tables/*
