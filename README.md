@@ -173,17 +173,29 @@ python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-onl
 python scripts/modeling/run_tvpvar_connectedness_models.py
 python scripts/reporting/make_tvpvar_connectedness_tables.py
 python scripts/reporting/plot_tvpvar_connectedness_timeseries.py
+python scripts/reporting/plot_connectedness_network.py
 ```
 
 The TVP-VAR stage uses plain EGARCH(1,1) conditional volatilities with no ARMA
-terms and no sentiment variables. TVP-VAR lag order is selected by BIC
-separately for each volatility system.
+terms or sentiment regressors in the first-stage volatility models. It estimates
+the original volatility systems and EAIS-augmented versions, selecting TVP-VAR
+lag order by BIC separately for each system. The augmented results are reported
+separately and are not used as dependent variables in downstream EAIS
+regressions.
 
 ### 9. Generate Spillover Regression Tables
 
 ```bash
 python scripts/reporting/make_spillover_regression_tables.py
 ```
+
+The raw-AIS robustness output includes contemporaneous and one-day-lagged raw
+AIS together in one HC3 regression. Their high correlation should be considered
+when interpreting the individual coefficients. The output also retains the
+one-lag EAIS HC3 specification and adds EAIS terms from `t` through `t-5` with
+Newey-West HAC standard errors (`maxlags=5`), cumulative effects, joint
+significance tests, lag correlations, VIFs, and residual autocorrelation
+diagnostics.
 
 ### 10. Run Final Validation And Compile Final Data Inventory (Validation Step 2 of 2)
 

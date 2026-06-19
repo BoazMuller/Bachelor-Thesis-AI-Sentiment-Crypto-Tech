@@ -35,6 +35,7 @@ def prepare_egarch_input(df: pd.DataFrame) -> pd.DataFrame:
     return prepare_egarch_restricted_input(df)
 
 def prepare_tvpvar_return_input(df: pd.DataFrame) -> pd.DataFrame:
+    enriched = add_sentiment_measures(df)
     columns = [
         DATE_COLUMN,
         "bitcoin_adj_close_log_return",
@@ -42,5 +43,12 @@ def prepare_tvpvar_return_input(df: pd.DataFrame) -> pd.DataFrame:
         "nvda_adj_close_log_return",
         "googl_adj_close_log_return",
         "msft_adj_close_log_return",
+        EXPECTATION_ADJUSTED_AIS,
     ]
-    return df[[column for column in columns if column in df.columns]].dropna().reset_index(drop=True)
+    return enriched[[column for column in columns if column in enriched.columns]].dropna(
+        subset=[
+            column
+            for column in columns
+            if column in enriched.columns and column != EXPECTATION_ADJUSTED_AIS
+        ]
+    ).reset_index(drop=True)

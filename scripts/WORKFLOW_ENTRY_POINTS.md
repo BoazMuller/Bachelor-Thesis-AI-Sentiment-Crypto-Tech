@@ -31,7 +31,8 @@ Scripts should import reusable functions from `code/src/thesis/` where possible.
 - `modeling/run_tvpvar_connectedness_models.py`: runs TVP-VAR connectedness systems using BIC-selected lags.
 - `reporting/make_armax_egarchx_model_tables.py`: generates Tables 5-6 from ARMAX-EGARCHX outputs.
 - `reporting/make_tvpvar_connectedness_tables.py`: generates Tables 7-13, TVP-VAR BIC lag selection, and the connectedness regression dataset.
-- `reporting/plot_tvpvar_connectedness_timeseries.py`: generates TVP-VAR total and NET connectedness figures.
+- `reporting/plot_tvpvar_connectedness_timeseries.py`: generates TVP-VAR total and NET connectedness figures for all configured systems.
+- `reporting/plot_connectedness_network.py`: generates individual, paired, and original-versus-EAIS TVP-VAR network figures.
 - `reporting/make_thesis_tables.py`: generates Python-buildable thesis tables.
 
 ## Model workflow order
@@ -47,5 +48,17 @@ python scripts/reporting/make_tvpvar_connectedness_tables.py --lag-selection-onl
 python scripts/modeling/run_tvpvar_connectedness_models.py
 python scripts/reporting/make_tvpvar_connectedness_tables.py
 python scripts/reporting/plot_tvpvar_connectedness_timeseries.py
+python scripts/reporting/plot_connectedness_network.py
 python scripts/reporting/make_spillover_regression_tables.py
 ```
+
+The TVP-VAR workflow estimates the original `benchmark` and `ai_equity`
+systems plus `benchmark_eais` and `ai_equity_eais`. Complete cases are selected
+separately for each system, preserving the original-system samples. Downstream
+EAIS regressions use only connectedness measures from the original systems.
+The raw-AIS robustness model includes `raw_ais` at `t` and its one-day lag
+together with HC3 standard errors; their high correlation is an interpretation
+caveat.
+The five-lag robustness specification includes EAIS terms `t` through `t-5`
+with Newey-West HAC standard errors (`maxlags=5`); the one-lag HC3 model remains
+available for comparison.

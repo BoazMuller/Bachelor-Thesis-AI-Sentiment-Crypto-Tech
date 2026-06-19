@@ -9,7 +9,7 @@ import pandas as pd
 from statsmodels.tsa.api import VAR
 
 from thesis.modeling.diagnostics import autocorrelation_tests, stationarity_tests
-from thesis.tables.common import DATE_COLUMN, descriptive_stats_table
+from thesis.tables.common import DATE_COLUMN, EXPECTATION_ADJUSTED_AIS, descriptive_stats_table
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,30 @@ TVPVAR_SYSTEMS: dict[str, TvpvarSystem] = {
             "msft_conditional_volatility",
         ),
     ),
+    "benchmark_eais": TvpvarSystem(
+        name="benchmark_eais",
+        description="Bitcoin and NASDAQ-100 conditional volatilities with EAIS",
+        columns=(
+            "bitcoin_conditional_volatility",
+            "ndx_conditional_volatility",
+            EXPECTATION_ADJUSTED_AIS,
+        ),
+    ),
+    "ai_equity_eais": TvpvarSystem(
+        name="ai_equity_eais",
+        description="Bitcoin and selected AI-exposed equity conditional volatilities with EAIS",
+        columns=(
+            "bitcoin_conditional_volatility",
+            "nvda_conditional_volatility",
+            "googl_conditional_volatility",
+            "msft_conditional_volatility",
+            EXPECTATION_ADJUSTED_AIS,
+        ),
+    ),
 }
+
+ORIGINAL_TVPVAR_SYSTEMS = ("benchmark", "ai_equity")
+AUGMENTED_TVPVAR_SYSTEMS = ("benchmark_eais", "ai_equity_eais")
 
 
 def read_volatility_panel(path: Path) -> pd.DataFrame:
@@ -47,41 +70,114 @@ def read_volatility_panel(path: Path) -> pd.DataFrame:
     df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
     return df.sort_values(DATE_COLUMN).reset_index(drop=True)
 
+
 def tvpvar_descriptives(volatility_panel: pd.DataFrame) -> pd.DataFrame:
-    columns = [column for column in volatility_panel.columns if column != DATE_COLUMN]
-    return descriptive_stats_table(volatility_panel, columns)
+    tables: list[pd.DataFrame] = []
+    for system in TVPVAR_SYSTEMS.values():
+        if not set(system.columns).issubset(volatility_panel.columns):
+            continue
+        panel = volatility_panel[[DATE_COLUMN, *system.columns]].dropna()
+        table = descriptive_stats_table(panel, system.columns)
+        table.insert(0, "system", system.name)
+        table["system_nobs"] = len(panel)
+        tables.append(table)
+    return pd.concat(tables, ignore_index=True) if tables else pd.DataFrame()
+
 
 def tvpvar_pre_estimation_diagnostics(volatility_panel: pd.DataFrame) -> pd.DataFrame:
-    columns = [column for column in volatility_panel.columns if column != DATE_COLUMN]
     rows: list[dict[str, object]] = []
-    stationarity = stationarity_tests(volatility_panel, columns)
-    for _, row in stationarity.iterrows():
+    for system in TVPVAR_SYSTEMS.values():
+        missing_columns = [column for column in system.columns if column not in volatility_panel.columns]
+        if missing_columns:
+            rows.append(
+                _diagnostic_row(
+                    system.name,
+                    "sample_coverage",
+                    test="availability",
+                    interpretation=f"Missing columns: {', '.join(missing_columns)}",
+                )
+            )
+            continue
+
+        system_data = volatility_panel[[DATE_COLUMN, *system.columns]]
+        panel = system_data.dropna().reset_index(drop=True)
         rows.append(
-            {
-                "diagnostic": "stationarity",
-                "variable": row["variable"],
-                "test": row["test"],
-                "lag": row.get("lags", np.nan),
-                "statistic": row.get("statistic", np.nan),
-                "p_value": row.get("p_value", np.nan),
-                "nobs": row.get("nobs", np.nan),
-                "interpretation": row.get("interpretation", ""),
-            }
+            _diagnostic_row(
+                system.name,
+                "sample_coverage",
+                test="complete_case_sample",
+                statistic=float(len(panel)),
+                nobs=len(panel),
+                interpretation=(
+                    f"{panel[DATE_COLUMN].min().date()} to {panel[DATE_COLUMN].max().date()}"
+                    if not panel.empty
+                    else "No complete observations"
+                ),
+            )
         )
-    autocorr = autocorrelation_tests(volatility_panel, columns)
-    for _, row in autocorr.iterrows():
-        rows.append(
-            {
-                "diagnostic": "autocorrelation",
-                "variable": row["variable"],
-                "test": "Ljung-Box",
-                "lag": row["lag"],
-                "statistic": row["lb_stat"],
-                "p_value": row["p_value"],
-                "nobs": row["nobs"],
-                "interpretation": row["interpretation"],
-            }
-        )
+        for column in system.columns:
+            rows.append(
+                _diagnostic_row(
+                    system.name,
+                    "missingness",
+                    variable=column,
+                    test="missing_count",
+                    statistic=float(system_data[column].isna().sum()),
+                    nobs=len(system_data),
+                    interpretation=f"{system_data[column].isna().mean():.4%} missing",
+                )
+            )
+
+        stationarity = stationarity_tests(panel, system.columns)
+        for _, row in stationarity.iterrows():
+            interpretation = str(row.get("interpretation", ""))
+            if row["variable"] == EXPECTATION_ADJUSTED_AIS and row["test"] == "KPSS":
+                interpretation = f"{interpretation}; mixed EAIS stationarity evidence is retained as a limitation"
+            rows.append(
+                _diagnostic_row(
+                    system.name,
+                    "stationarity",
+                    variable=row["variable"],
+                    test=row["test"],
+                    lag=row.get("lags", np.nan),
+                    statistic=row.get("statistic", np.nan),
+                    p_value=row.get("p_value", np.nan),
+                    nobs=row.get("nobs", np.nan),
+                    interpretation=interpretation,
+                )
+            )
+        autocorr = autocorrelation_tests(panel, system.columns)
+        for _, row in autocorr.iterrows():
+            rows.append(
+                _diagnostic_row(
+                    system.name,
+                    "autocorrelation",
+                    variable=row["variable"],
+                    test="Ljung-Box",
+                    lag=row["lag"],
+                    statistic=row["lb_stat"],
+                    p_value=row["p_value"],
+                    nobs=row["nobs"],
+                    interpretation=row["interpretation"],
+                )
+            )
+
+        correlations = panel[list(system.columns)].corr()
+        for row_variable in system.columns:
+            for column_variable in system.columns:
+                rows.append(
+                    _diagnostic_row(
+                        system.name,
+                        "correlation",
+                        variable=row_variable,
+                        test=column_variable,
+                        statistic=correlations.loc[row_variable, column_variable],
+                        nobs=len(panel),
+                        interpretation="Pearson correlation",
+                    )
+                )
+
+        _append_var_stability(rows, system, panel)
     return pd.DataFrame(rows)
 
 
@@ -93,7 +189,7 @@ def table_09_tvpvar_system_definition() -> pd.DataFrame:
                 "description": system.description,
                 "variables": ", ".join(system.columns),
                 "variable_count": len(system.columns),
-                "input": "EGARCH(1,1) conditional volatility",
+                "input": "EGARCH(1,1) conditional volatility, plus EAIS where configured",
             }
             for system in TVPVAR_SYSTEMS.values()
         ]
@@ -122,7 +218,12 @@ def tvpvar_lag_selection(
             )
             continue
 
-        panel = volatility_panel[list(system.columns)].apply(pd.to_numeric, errors="coerce").dropna()
+        panel = (
+            volatility_panel[list(system.columns)]
+            .apply(pd.to_numeric, errors="coerce")
+            .dropna()
+            .reset_index(drop=True)
+        )
         candidate_rows: list[dict[str, object]] = []
         effective_maxlags = min(maxlags, max(1, len(panel) // 8))
         for lag in range(1, effective_maxlags + 1):
@@ -187,17 +288,25 @@ def table_11_average_connectedness(models_dir: Path, *, horizon: int = 10) -> pd
             numeric_columns = [column for column in values.columns if column != DATE_COLUMN]
             for column in numeric_columns:
                 series = pd.to_numeric(values[column], errors="coerce")
+                mean = float(series.mean())
                 rows.append(
                     {
                         "system": system_name,
                         "horizon": horizon,
                         "component": component,
                         "variable": column,
-                        "mean": float(series.mean()),
+                        "mean": mean,
                         "standard_deviation": float(series.std(ddof=1)),
                         "min": float(series.min()),
                         "max": float(series.max()),
                         "nobs": int(series.notna().sum()),
+                        "role": (
+                            "net_transmitter"
+                            if component == "net" and mean >= 0
+                            else "net_receiver"
+                            if component == "net"
+                            else ""
+                        ),
                         "note": "",
                     }
                 )
@@ -247,6 +356,8 @@ def table_13_robustness_connectedness(models_dir: Path) -> pd.DataFrame:
         "difference_h100_minus_h10",
         "nobs_h10",
         "nobs_h100",
+        "role_h10",
+        "role_h100",
         "note_h10",
         "note_h100",
     ]
@@ -255,7 +366,7 @@ def table_13_robustness_connectedness(models_dir: Path) -> pd.DataFrame:
 
 def build_connectedness_regression_dataset(models_dir: Path, *, horizon: int = 10) -> pd.DataFrame:
     merged: pd.DataFrame | None = None
-    for system_name in TVPVAR_SYSTEMS:
+    for system_name in ORIGINAL_TVPVAR_SYSTEMS:
         output_dir = models_dir / f"{system_name}_h{horizon}"
         system_frames: list[pd.DataFrame] = []
         for component in ["tci", "to", "from", "net"]:
@@ -290,6 +401,7 @@ def _missing_connectedness_row(system_name: str, horizon: int, component: str, p
         "min": np.nan,
         "max": np.nan,
         "nobs": 0,
+        "role": "",
         "note": f"Missing connectedness output: {path}",
     }
 
@@ -334,3 +446,77 @@ def _merge_on_date(frames: list[pd.DataFrame]) -> pd.DataFrame:
 def _clean_column_name(value: object) -> str:
     cleaned = re.sub(r"[^0-9a-zA-Z]+", "_", str(value).strip().lower())
     return cleaned.strip("_")
+
+
+def _diagnostic_row(
+    system: str,
+    diagnostic: str,
+    *,
+    variable: str = "",
+    test: str = "",
+    lag: object = np.nan,
+    statistic: object = np.nan,
+    p_value: object = np.nan,
+    nobs: object = np.nan,
+    interpretation: str = "",
+) -> dict[str, object]:
+    return {
+        "system": system,
+        "diagnostic": diagnostic,
+        "variable": variable,
+        "test": test,
+        "lag": lag,
+        "statistic": statistic,
+        "p_value": p_value,
+        "nobs": nobs,
+        "interpretation": interpretation,
+    }
+
+
+def _append_var_stability(
+    rows: list[dict[str, object]],
+    system: TvpvarSystem,
+    panel: pd.DataFrame,
+) -> None:
+    lag = _selected_bic_lag(panel[list(system.columns)])
+    if lag is None:
+        rows.append(
+            _diagnostic_row(
+                system.name,
+                "constant_var_stability",
+                test="characteristic_roots",
+                nobs=len(panel),
+                interpretation="Could not estimate a positive-lag constant VAR",
+            )
+        )
+        return
+
+    result = VAR(panel[list(system.columns)]).fit(lag)
+    roots = np.abs(result.roots)
+    rows.append(
+        _diagnostic_row(
+            system.name,
+            "constant_var_stability",
+            test="characteristic_roots",
+            lag=lag,
+            statistic=float(roots.min()) if len(roots) else np.nan,
+            nobs=result.nobs,
+            interpretation=(
+                f"stable={result.is_stable(verbose=False)}; "
+                f"min_abs_root={roots.min():.6f}; max_abs_root={roots.max():.6f}"
+            ),
+        )
+    )
+
+
+def _selected_bic_lag(panel: pd.DataFrame, maxlags: int = 10) -> int | None:
+    effective_maxlags = min(maxlags, max(1, len(panel) // 8))
+    candidates: list[tuple[float, int]] = []
+    for lag in range(1, effective_maxlags + 1):
+        try:
+            result = VAR(panel).fit(lag)
+        except Exception:
+            continue
+        if np.isfinite(result.bic):
+            candidates.append((float(result.bic), lag))
+    return min(candidates)[1] if candidates else None

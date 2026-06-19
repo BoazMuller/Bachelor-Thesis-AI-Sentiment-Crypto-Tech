@@ -139,7 +139,8 @@ extract_diagnostics <- function(fit, asset_name, nobs) {
   dplyr::bind_rows(info_rows, lb_rows, convergence)
 }
 
-volatility_panel <- data["date"]
+passthrough_columns <- intersect(c("date", "expectation_adjusted_ais"), names(data))
+volatility_panel <- data[passthrough_columns]
 coefficient_rows <- list()
 diagnostic_rows <- list()
 long_volatility_rows <- list()
@@ -171,9 +172,6 @@ for (asset_name in names(asset_specs)) {
   coefficient_rows[[length(coefficient_rows) + 1]] <- extract_coefficients(fit, asset_name, nrow(model_data))
   diagnostic_rows[[length(diagnostic_rows) + 1]] <- extract_diagnostics(fit, asset_name, nrow(model_data))
 }
-
-volatility_panel <- volatility_panel |>
-  tidyr::drop_na()
 
 readr::write_csv(volatility_panel, file.path(output_dir, "tvpvar_connectedness_dataset.csv"))
 readr::write_csv(dplyr::bind_rows(long_volatility_rows), file.path(output_dir, "egarch_volatility_long.csv"))

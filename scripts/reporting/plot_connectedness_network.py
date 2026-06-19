@@ -32,6 +32,11 @@ import numpy as np
 import pandas as pd
 
 from thesis.paths import FIGURES_DIR, TABLES_DIR
+from thesis.tables.tvpvar_connectedness import (
+    AUGMENTED_TVPVAR_SYSTEMS,
+    ORIGINAL_TVPVAR_SYSTEMS,
+    TVPVAR_SYSTEMS,
+)
 
 
 NODE_LABELS = {
@@ -40,14 +45,15 @@ NODE_LABELS = {
     "nvda_conditional_volatility": "NVDA",
     "googl_conditional_volatility": "GOOGL",
     "msft_conditional_volatility": "MSFT",
+    "expectation_adjusted_ais": "EAIS",
 }
 
 SYSTEM_LABELS = {
     "ai_equity": "BTC-AI Equity System",
     "benchmark": "BTC-NDX System",
+    "benchmark_eais": "BTC-NDX-EAIS System",
+    "ai_equity_eais": "BTC-AI Equity-EAIS System",
 }
-
-SYSTEMS = ("benchmark", "ai_equity")
 
 EDGE_BLUE = "#0000ff"
 EDGE_ORANGE = "#ff9800"
@@ -91,6 +97,13 @@ def parse_args() -> argparse.Namespace:
         help="Forecast horizons to plot.",
     )
     parser.add_argument(
+        "--systems",
+        nargs="+",
+        choices=list(TVPVAR_SYSTEMS),
+        default=list(TVPVAR_SYSTEMS),
+        help="Configured TVP-VAR systems to plot.",
+    )
+    parser.add_argument(
         "--edge-threshold",
         type=float,
         default=0.0,
@@ -111,27 +124,76 @@ def main() -> None:
 
     outputs: list[Path] = []
     for horizon in args.horizons:
-        networks = [
+        available = [
             _load_network(args.input_dir, system, horizon, edge_threshold=args.edge_threshold)
-            for system in SYSTEMS
+            for system in args.systems
         ]
-        networks = [network for network in networks if network.nodes]
+        networks = {network.system: network for network in available if network.nodes}
         if not networks:
             print(f"Skipping h={horizon}; no connectedness network data found.")
             continue
 
-        blue_threshold = _blue_threshold(networks, args.blue_threshold)
-        output_path = args.output_dir / f"network_side_by_side_h{horizon}.png"
-        _plot_side_by_side_networks(networks, horizon, blue_threshold, output_path)
-        outputs.append(output_path)
+        for system in AUGMENTED_TVPVAR_SYSTEMS:
+            if system in networks:
+                eais_count = networks[system].nodes.count("expectation_adjusted_ais")
+                if eais_count != 1:
+                    raise ValueError(f"{system} must contain exactly one EAIS node; found {eais_count}")
+
+        for network in networks.values():
+            output_path = args.output_dir / f"network_{network.system}_h{horizon}.png"
+            _plot_networks(
+                [network],
+                horizon,
+                _blue_threshold([network], args.blue_threshold),
+                output_path,
+            )
+            outputs.append(output_path)
+
+        original_networks = [networks[name] for name in ORIGINAL_TVPVAR_SYSTEMS if name in networks]
+        if original_networks:
+            output_path = args.output_dir / f"network_side_by_side_h{horizon}.png"
+            _plot_networks(
+                original_networks,
+                horizon,
+                _blue_threshold(original_networks, args.blue_threshold),
+                output_path,
+            )
+            outputs.append(output_path)
+
+        augmented_networks = [networks[name] for name in AUGMENTED_TVPVAR_SYSTEMS if name in networks]
+        if augmented_networks:
+            output_path = args.output_dir / f"network_augmented_side_by_side_h{horizon}.png"
+            _plot_networks(
+                augmented_networks,
+                horizon,
+                _blue_threshold(augmented_networks, args.blue_threshold),
+                output_path,
+            )
+            outputs.append(output_path)
+
+        for original, augmented in (
+            ("benchmark", "benchmark_eais"),
+            ("ai_equity", "ai_equity_eais"),
+        ):
+            comparison = [networks[name] for name in (original, augmented) if name in networks]
+            if len(comparison) != 2:
+                continue
+            output_path = args.output_dir / f"network_{original}_original_vs_eais_h{horizon}.png"
+            _plot_networks(
+                comparison,
+                horizon,
+                _blue_threshold(comparison, args.blue_threshold),
+                output_path,
+            )
+            outputs.append(output_path)
 
     for output in outputs:
         print(output.relative_to(PROJECT_ROOT))
 
 
 def _load_network(input_dir: Path, system: str, horizon: int, *, edge_threshold: float) -> NetworkData:
-    npdc_path = input_dir / f"tvpvar_connectedness_{system}_h{horizon}_npdc_h{horizon}.csv"
-    net_path = input_dir / f"tvpvar_connectedness_{system}_h{horizon}_net_h{horizon}.csv"
+    npdc_path = _component_path(input_dir, system, horizon, "npdc")
+    net_path = _component_path(input_dir, system, horizon, "net")
     if not npdc_path.exists() or not net_path.exists():
         return NetworkData(system=system, nodes=[], edges=[], net_values={}, edge_values=[])
 
@@ -182,7 +244,7 @@ def _blue_threshold(networks: list[NetworkData], configured_threshold: float | N
     return float(np.percentile(edge_values, 75))
 
 
-def _plot_side_by_side_networks(
+def _plot_networks(
     networks: list[NetworkData],
     horizon: int,
     blue_threshold: float,
@@ -191,7 +253,8 @@ def _plot_side_by_side_networks(
     max_abs_net = max((abs(value) for network in networks for value in network.net_values.values()), default=1.0)
     max_edge = max((value for network in networks for value in network.edge_values), default=1.0)
 
-    fig, axes = plt.subplots(1, len(networks), figsize=(15.5, 7.2), constrained_layout=True)
+    width = 8.0 if len(networks) == 1 else 15.5
+    fig, axes = plt.subplots(1, len(networks), figsize=(width, 7.2), constrained_layout=True)
     if len(networks) == 1:
         axes = [axes]
 
@@ -218,7 +281,7 @@ def _draw_network_panel(
     max_edge: float,
     blue_threshold: float,
 ) -> None:
-    pos = _network_positions(network.nodes)
+    pos = _network_positions(network.system, network.nodes)
     node_radii = {
         node: 0.09 + 0.16 * abs(network.net_values[node]) / max(max_abs_net, 1e-12)
         for node in network.nodes
@@ -277,16 +340,33 @@ def _draw_network_panel(
     ax.set_axis_off()
 
 
-def _network_positions(nodes: list[str]) -> dict[str, tuple[float, float]]:
-    if len(nodes) == 2:
-        angles = np.array([np.pi, 0.0])
+def _network_positions(system: str, nodes: list[str]) -> dict[str, tuple[float, float]]:
+    if system.startswith("benchmark"):
+        family_positions = {
+            "bitcoin_conditional_volatility": (-0.95, -0.35),
+            "ndx_conditional_volatility": (0.95, -0.35),
+            "expectation_adjusted_ais": (0.0, 0.95),
+        }
     else:
-        angles = np.linspace(np.pi / 2, np.pi / 2 - 2 * np.pi, len(nodes), endpoint=False)
+        family_positions = {
+            "bitcoin_conditional_volatility": (0.0, 1.0),
+            "nvda_conditional_volatility": (0.95, 0.3),
+            "googl_conditional_volatility": (0.6, -0.9),
+            "msft_conditional_volatility": (-0.6, -0.9),
+            "expectation_adjusted_ais": (-0.95, 0.3),
+        }
+    if set(nodes).issubset(family_positions):
+        return {node: family_positions[node] for node in nodes}
 
-    return {
-        node: (float(np.cos(angle)), float(np.sin(angle)))
-        for node, angle in zip(nodes, angles)
-    }
+    angles = np.linspace(np.pi / 2, np.pi / 2 - 2 * np.pi, len(nodes), endpoint=False)
+    return {node: (float(np.cos(angle)), float(np.sin(angle))) for node, angle in zip(nodes, angles)}
+
+
+def _component_path(input_dir: Path, system: str, horizon: int, component: str) -> Path:
+    nested = input_dir / f"{system}_h{horizon}" / f"{component}_h{horizon}.csv"
+    if nested.exists():
+        return nested
+    return input_dir / f"tvpvar_connectedness_{system}_h{horizon}_{component}_h{horizon}.csv"
 
 
 def _shortened_edge(

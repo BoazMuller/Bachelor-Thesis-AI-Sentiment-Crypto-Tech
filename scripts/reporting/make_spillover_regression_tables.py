@@ -22,11 +22,14 @@ from thesis.tables.common import add_sentiment_measures, read_daily_time_series 
 from thesis.tables.spillover_regressions import (  # noqa: E402
     infer_dependent_columns,
     merge_sentiment_if_needed,
+    spillover_regression_diagnostics,
     table_25_dataset_summary,
     table_26_correlation_matrix,
     table_27_baseline_regressions,
     table_28_lagged_regressions,
     table_29_raw_ais_regressions,
+    table_30_five_lag_hac_regressions,
+    table_31_five_lag_hac_joint_tests,
 )
 
 
@@ -43,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--time-series-csv", type=Path, default=DEFAULT_TIME_SERIES_CSV)
     parser.add_argument("--dependent-columns", nargs="*", default=None)
     parser.add_argument("--cov-type", default="HC3")
+    parser.add_argument("--hac-maxlags", type=int, default=5)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()
 
@@ -66,15 +70,33 @@ def main() -> None:
     baseline = table_27_baseline_regressions(dataset, dependent_columns, args.cov_type)
     lagged = table_28_lagged_regressions(dataset, dependent_columns, args.cov_type)
     raw_ais = table_29_raw_ais_regressions(dataset, dependent_columns, args.cov_type)
-    coefficients = _combine_coefficients(baseline, lagged, raw_ais)
+    five_lag_hac = table_30_five_lag_hac_regressions(
+        dataset,
+        dependent_columns,
+        maxlags=args.hac_maxlags,
+    )
+    joint_tests = table_31_five_lag_hac_joint_tests(
+        dataset,
+        dependent_columns,
+        maxlags=args.hac_maxlags,
+    )
+    diagnostics = spillover_regression_diagnostics(
+        dataset,
+        dependent_columns,
+        maxlags=args.hac_maxlags,
+    )
+    coefficients = _combine_coefficients(baseline, lagged, raw_ais, five_lag_hac)
     outputs = [
         write_dataframe(dataset, args.output_dir / "spillover_regressions_dataset.csv"),
         write_dataframe(table_25_dataset_summary(dataset, dependent_columns), args.output_dir / "spillover_regressions_descriptives.csv"),
         write_dataframe(table_26_correlation_matrix(dataset, dependent_columns), args.output_dir / "spillover_regressions_pre_estimation_diagnostics.csv"),
+        write_dataframe(diagnostics, args.output_dir / "spillover_regressions_diagnostics.csv"),
         write_dataframe(coefficients, args.output_dir / "spillover_regressions_coefficients.csv"),
         write_dataframe(_regression_results_summary(coefficients), args.output_dir / "spillover_regressions_results.csv"),
         write_dataframe(lagged, args.output_dir / "spillover_regressions_lagged_sentiment_robustness_results.csv"),
         write_dataframe(raw_ais, args.output_dir / "spillover_regressions_raw_ais_robustness_results.csv"),
+        write_dataframe(five_lag_hac, args.output_dir / "spillover_regressions_five_lag_hac_results.csv"),
+        write_dataframe(joint_tests, args.output_dir / "spillover_regressions_five_lag_hac_joint_tests.csv"),
     ]
 
     for path in outputs:

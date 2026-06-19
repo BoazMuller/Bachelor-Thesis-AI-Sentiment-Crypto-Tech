@@ -19,6 +19,7 @@ from thesis.table_output import write_dataframe  # noqa: E402
 from thesis.tables.tvpvar_connectedness import (  # noqa: E402
     build_connectedness_regression_dataset,
     read_volatility_panel,
+    table_09_tvpvar_system_definition,
     table_10_tvpvar_lag_selection,
     table_11_average_connectedness,
     table_12_average_pairwise_connectedness_matrix,
@@ -53,6 +54,10 @@ def main() -> None:
     source_dir = _connectedness_source_dir(args.source_dir, args.fallback_models_dir)
 
     outputs = [
+        write_dataframe(
+            table_09_tvpvar_system_definition(),
+            args.output_dir / "tvpvar_connectedness_system_definition.csv",
+        ),
         write_dataframe(volatility, args.output_dir / "tvpvar_connectedness_dataset.csv"),
         write_dataframe(tvpvar_descriptives(volatility), args.output_dir / "tvpvar_connectedness_descriptives.csv"),
         write_dataframe(tvpvar_pre_estimation_diagnostics(volatility), args.output_dir / "tvpvar_connectedness_pre_estimation_diagnostics.csv"),
@@ -65,11 +70,18 @@ def main() -> None:
         if coefficients_csv.exists():
             outputs.append(write_dataframe(pd.read_csv(coefficients_csv), args.output_dir / "tvpvar_connectedness_coefficients.csv"))
         if diagnostics_csv.exists():
-            outputs.append(write_dataframe(pd.read_csv(diagnostics_csv), args.output_dir / "tvpvar_connectedness_post_estimation_diagnostics.csv"))
+            outputs.append(write_dataframe(pd.read_csv(diagnostics_csv), args.output_dir / "egarch_volatility_post_estimation_diagnostics.csv"))
         outputs.append(write_dataframe(table_11_average_connectedness(source_dir, horizon=10), args.output_dir / "tvpvar_connectedness_results.csv"))
         outputs.append(write_dataframe(table_12_average_pairwise_connectedness_matrix(source_dir, horizon=10), args.output_dir / "tvpvar_connectedness_pairwise_results.csv"))
+        outputs.append(
+            write_dataframe(
+                table_12_average_pairwise_connectedness_matrix(source_dir, horizon=100),
+                args.output_dir / "tvpvar_connectedness_pairwise_robustness_results.csv",
+            )
+        )
         outputs.append(write_dataframe(table_13_robustness_connectedness(source_dir), args.output_dir / "tvpvar_connectedness_robustness_results.csv"))
         outputs.extend(_write_connectedness_components(source_dir, args.output_dir))
+        outputs.extend(_write_tvpvar_diagnostics(source_dir, args.output_dir))
         outputs.append(
             write_dataframe(
                 build_connectedness_regression_dataset(source_dir, horizon=10),
@@ -101,6 +113,50 @@ def _write_connectedness_components(source_dir: Path, output_dir: Path) -> list[
                 target_name = f"tvpvar_connectedness_{system_dir.name}_{source_csv.stem}.csv"
                 outputs.append(write_dataframe(pd.read_csv(source_csv), output_dir / target_name))
     return outputs
+
+
+def _write_tvpvar_diagnostics(source_dir: Path, output_dir: Path) -> list[Path]:
+    diagnostic_frames: list[pd.DataFrame] = []
+    completeness_frames: list[pd.DataFrame] = []
+    outputs: list[Path] = []
+    for system_dir in source_dir.glob("*_h*"):
+        if not system_dir.is_dir():
+            continue
+        system, horizon = _parse_system_dir(system_dir.name)
+        for source_csv in system_dir.glob("tvpvar_post_estimation_diagnostics_h*.csv"):
+            frame = pd.read_csv(source_csv)
+            frame.insert(0, "horizon", horizon)
+            frame.insert(0, "system", system)
+            diagnostic_frames.append(frame)
+        for source_csv in system_dir.glob("tvpvar_output_completeness_h*.csv"):
+            frame = pd.read_csv(source_csv)
+            frame.insert(0, "horizon", horizon)
+            frame.insert(0, "system", system)
+            completeness_frames.append(frame)
+        for source_csv in system_dir.glob("standardized_innovations_h*.csv"):
+            target_name = f"tvpvar_connectedness_{system_dir.name}_{source_csv.stem}.csv"
+            outputs.append(write_dataframe(pd.read_csv(source_csv), output_dir / target_name))
+
+    if diagnostic_frames:
+        outputs.append(
+            write_dataframe(
+                pd.concat(diagnostic_frames, ignore_index=True),
+                output_dir / "tvpvar_connectedness_post_estimation_diagnostics.csv",
+            )
+        )
+    if completeness_frames:
+        outputs.append(
+            write_dataframe(
+                pd.concat(completeness_frames, ignore_index=True),
+                output_dir / "tvpvar_connectedness_output_completeness.csv",
+            )
+        )
+    return outputs
+
+
+def _parse_system_dir(name: str) -> tuple[str, int]:
+    system, horizon = name.rsplit("_h", maxsplit=1)
+    return system, int(horizon)
 
 
 if __name__ == "__main__":

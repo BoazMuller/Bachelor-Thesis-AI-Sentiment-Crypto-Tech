@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 
 from thesis.paths import FIGURES_DIR, TABLES_DIR
+from thesis.tables.tvpvar_connectedness import TVPVAR_SYSTEMS
 
 
 DATE_COLUMN = "date"
@@ -39,19 +40,7 @@ VARIABLE_LABELS = {
     "msft_conditional_volatility": "MSFT",
     "nvda_conditional_volatility": "NVDA",
     "googl_conditional_volatility": "GOOGL",
-}
-
-REQUESTED_NET_SERIES = {
-    "benchmark": (
-        "bitcoin_conditional_volatility",
-        "ndx_conditional_volatility",
-    ),
-    "ai_equity": (
-        "bitcoin_conditional_volatility",
-        "msft_conditional_volatility",
-        "nvda_conditional_volatility",
-        "googl_conditional_volatility",
-    ),
+    "expectation_adjusted_ais": "EAIS",
 }
 
 
@@ -80,10 +69,17 @@ def parse_args() -> argparse.Namespace:
         help="Directory for connectedness time-series figures.",
     )
     parser.add_argument(
-        "--horizon",
+        "--horizons",
+        nargs="+",
         type=int,
-        default=10,
-        help="Forecast horizon to plot.",
+        default=[10, 100],
+        help="Forecast horizons to plot.",
+    )
+    parser.add_argument(
+        "--systems",
+        nargs="+",
+        choices=list(TVPVAR_SYSTEMS),
+        default=list(TVPVAR_SYSTEMS),
     )
     return parser.parse_args()
 
@@ -93,23 +89,24 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
-    for spec in _series_specs(args.horizon):
-        data = _load_component(args.input_dir, spec.system, spec.component, args.horizon)
-        if data.empty or spec.column not in data.columns:
-            print(f"Skipping {spec.output_stem}; missing {spec.component} column {spec.column!r}.")
-            continue
+    for horizon in args.horizons:
+        for spec in _series_specs(horizon, args.systems):
+            data = _load_component(args.input_dir, spec.system, spec.component, horizon)
+            if data.empty or spec.column not in data.columns:
+                print(f"Skipping {spec.output_stem}; missing {spec.component} column {spec.column!r}.")
+                continue
 
-        output_path = args.output_dir / f"{spec.output_stem}_h{args.horizon}.png"
-        _plot_series(data, spec, output_path)
-        outputs.append(output_path)
+            output_path = args.output_dir / f"{spec.output_stem}_h{horizon}.png"
+            _plot_series(data, spec, output_path)
+            outputs.append(output_path)
 
     for output in outputs:
         print(output.relative_to(PROJECT_ROOT))
 
 
-def _series_specs(horizon: int) -> list[SeriesSpec]:
+def _series_specs(horizon: int, systems: list[str]) -> list[SeriesSpec]:
     specs: list[SeriesSpec] = []
-    for system in ("benchmark", "ai_equity"):
+    for system in systems:
         specs.append(
             SeriesSpec(
                 system=system,
@@ -120,7 +117,7 @@ def _series_specs(horizon: int) -> list[SeriesSpec]:
                 output_stem=f"timeseries_{system}_total_connectedness",
             )
         )
-        for column in REQUESTED_NET_SERIES[system]:
+        for column in TVPVAR_SYSTEMS[system].columns:
             label = VARIABLE_LABELS.get(column, column)
             specs.append(
                 SeriesSpec(

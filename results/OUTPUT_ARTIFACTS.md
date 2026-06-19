@@ -8,3 +8,14 @@ Generated outputs belong here. These folders are ignored by Git by default, exce
 - `tables/`: CSV datasets, diagnostics, coefficients, and result tables used by the thesis.
 - `models/`: Serialized fitted model objects, such as TVP-VAR `.rds` files.
 - `reports/`: Generated reports, logs, and supplementary outputs.
+
+## TVP-VAR And Spillover Outputs
+
+- `tables/tvpvar_connectedness/`: original and EAIS-augmented connectedness
+  outputs, pre/post-estimation diagnostics, output-completeness checks, and the
+  original-system-only regression dataset.
+- `figures/tvpvar_connectedness/`: connectedness time series plus individual,
+  paired, and original-versus-EAIS network figures.
+- `tables/spillover_regressions/`: joint contemporaneous-and-lagged raw-AIS HC3
+  results, one-lag EAIS HC3 results, five-lag HAC results, cumulative and joint
+  EAIS tests, and regression diagnostics.
