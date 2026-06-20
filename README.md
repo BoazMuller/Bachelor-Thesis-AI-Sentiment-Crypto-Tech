@@ -189,13 +189,14 @@ regressions.
 python scripts/reporting/make_spillover_regression_tables.py
 ```
 
-The raw-AIS robustness output includes contemporaneous and one-day-lagged raw
-AIS together in one HC3 regression. Their high correlation should be considered
-when interpreting the individual coefficients. The output also retains the
-one-lag EAIS HC3 specification and adds EAIS terms from `t` through `t-5` with
-Newey-West HAC standard errors (`maxlags=5`), cumulative effects, joint
-significance tests, lag correlations, VIFs, and residual autocorrelation
-diagnostics.
+The connectedness regressions use Newey-West HAC standard errors (`maxlags=5`)
+to account for heteroskedasticity and serial correlation in daily connectedness
+measures. The raw-AIS robustness output includes contemporaneous and one-day-
+lagged raw AIS together; their high correlation should be considered when
+interpreting the individual coefficients. The output also retains the one-lag
+EAIS specification and adds EAIS terms from `t` through `t-5`, cumulative
+effects, joint significance tests, lag correlations, VIFs, and residual
+autocorrelation diagnostics.
 
 ### 10. Run Final Validation And Compile Final Data Inventory (Validation Step 2 of 2)
 

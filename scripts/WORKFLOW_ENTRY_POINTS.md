@@ -57,8 +57,8 @@ systems plus `benchmark_eais` and `ai_equity_eais`. Complete cases are selected
 separately for each system, preserving the original-system samples. Downstream
 EAIS regressions use only connectedness measures from the original systems.
 The raw-AIS robustness model includes `raw_ais` at `t` and its one-day lag
-together with HC3 standard errors; their high correlation is an interpretation
-caveat.
-The five-lag robustness specification includes EAIS terms `t` through `t-5`
-with Newey-West HAC standard errors (`maxlags=5`); the one-lag HC3 model remains
-available for comparison.
+together; their high correlation is an interpretation caveat.
+Connectedness-regression inference uses Newey-West HAC standard errors
+(`maxlags=5`) throughout.
+The five-lag robustness specification includes EAIS terms `t` through `t-5`;
+the one-lag model remains available for comparison.

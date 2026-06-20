@@ -4,7 +4,7 @@ import hashlib
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -332,8 +332,14 @@ def regression_table(
     dependent: str,
     specifications: dict[str, Sequence[str]],
     cov_type: str = "HC3",
+    cov_kwds: Mapping[str, object] | None = None,
+    covariance_label: str | None = None,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
+    fit_kwargs = {"cov_type": cov_type}
+    if cov_kwds:
+        fit_kwargs["cov_kwds"] = dict(cov_kwds)
+    reported_covariance = covariance_label or cov_type
     for spec_name, regressors in specifications.items():
         model_data = df[[dependent] + list(regressors)].apply(pd.to_numeric, errors="coerce").dropna()
         if len(model_data) <= len(regressors) + 2:
@@ -348,12 +354,13 @@ def regression_table(
                     "r_squared": np.nan,
                     "adjusted_r_squared": np.nan,
                     "nobs": int(len(model_data)),
+                    "covariance_type": reported_covariance,
                     "note": "Skipped: insufficient complete observations",
                 }
             )
             continue
         x = sm.add_constant(model_data[list(regressors)], has_constant="add")
-        model = sm.OLS(model_data[dependent], x).fit(cov_type=cov_type)
+        model = sm.OLS(model_data[dependent], x).fit(**fit_kwargs)
         for term in model.params.index:
             rows.append(
                 {
@@ -366,7 +373,7 @@ def regression_table(
                     "r_squared": float(model.rsquared),
                     "adjusted_r_squared": float(model.rsquared_adj),
                     "nobs": int(model.nobs),
-                    "covariance_type": cov_type,
+                    "covariance_type": reported_covariance,
                     "note": "",
                 }
             )

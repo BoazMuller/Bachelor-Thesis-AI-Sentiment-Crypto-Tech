@@ -111,7 +111,7 @@ def main() -> None:
             write_dataframe(table_roberta_count_descriptives(sentiment_records), TABLES_DIR / "RoBERTa" / "roberta_count_descriptives.csv"),
             write_dataframe(table_roberta_count_descriptives_shifted(sentiment_records, df["date"]), TABLES_DIR / "RoBERTa" / "roberta_count_descriptives_shifted.csv"),
             write_dataframe(table_roberta_validation_sample(sentiment_records, n=100, seed=42), TABLES_DIR / "RoBERTa" / "roberta_validation_sample_100.csv"),
-            write_dataframe(table_roberta_extreme_sentiment(sentiment_records, top_n=10), TABLES_DIR / "RoBERTa" / "roberta_extreme_sentiment.csv"),
+            write_dataframe(table_roberta_extreme_sentiment(sentiment_records, top_n=5), TABLES_DIR / "RoBERTa" / "roberta_extreme_sentiment.csv"),
             write_dataframe(table_roberta_label_distribution(sentiment_records), TABLES_DIR / "RoBERTa" / "roberta_label_distribution.csv"),
         ])
     except Exception as exc:

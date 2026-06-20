@@ -90,38 +90,19 @@ def table_roberta_validation_sample(
 ) -> pd.DataFrame:
     """
     Randomly select a sample of classifications for manual verification.
-    Uses stratified sampling to balance GDELT and Reddit posts.
+    Uses source-balanced sampling to include GDELT and Reddit texts.
     """
     df = sentiment_records.copy()
-
-    # We want a stratified sample: n/2 from each source.
-    sources = df["source"].unique()
-    if len(sources) == 2:
-        n_per_source = n // 2
-        samples = []
-        for src in sources:
-            src_df = df[df["source"] == src]
-            sample_size = min(len(src_df), n_per_source)
-            if sample_size > 0:
-                sampled = src_df.sample(n=sample_size, random_state=seed)
-                samples.append(sampled)
-        if len(samples) > 0:
-            sample_df = pd.concat(samples)
-            # Top up to n if there is any deficit
-            if len(sample_df) < n:
-                remaining = df.drop(sample_df.index)
-                topup_size = min(len(remaining), n - len(sample_df))
-                if topup_size > 0:
-                    topup = remaining.sample(n=topup_size, random_state=seed)
-                    sample_df = pd.concat([sample_df, topup])
-        else:
-            sample_df = pd.DataFrame(columns=df.columns)
+    if df.empty:
+        sample_df = pd.DataFrame(columns=df.columns)
+    elif "source" in df.columns:
+        sources = [source for source in ["gdelt", "reddit"] if source in set(df["source"].dropna())]
+        if not sources:
+            sources = sorted(df["source"].dropna().unique())
+        sample_df = _source_balanced_sample(df, sources=sources, n=n, seed=seed)
     else:
         sample_size = min(len(df), n)
-        if sample_size > 0:
-            sample_df = df.sample(n=sample_size, random_state=seed)
-        else:
-            sample_df = pd.DataFrame(columns=df.columns)
+        sample_df = df.sample(n=sample_size, random_state=seed) if sample_size else pd.DataFrame(columns=df.columns)
 
     columns_to_keep = [
         "date",
@@ -137,23 +118,77 @@ def table_roberta_validation_sample(
     columns_to_keep = [col for col in columns_to_keep if col in sample_df.columns]
 
     sample_df = sample_df[columns_to_keep].copy()
+    if "roberta_sentiment_label" in sample_df.columns:
+        sample_df = sample_df.rename(columns={"roberta_sentiment_label": "model_label"})
+    elif {"roberta_prob_negative", "roberta_prob_neutral", "roberta_prob_positive"}.issubset(sample_df.columns):
+        sample_df["model_label"] = _model_label_from_probabilities(sample_df)
+    else:
+        sample_df["model_label"] = ""
+
     sample_df["manual_label"] = ""
     sample_df["manual_notes"] = ""
+    sample_df.insert(0, "validation_id", range(1, len(sample_df) + 1))
 
-    # Sort by date and source for ease of manual verification
     if "date" in sample_df.columns:
         sample_df["date"] = pd.to_datetime(sample_df["date"])
-        sample_df = sample_df.sort_values(["date", "source"]).reset_index(drop=True)
+        sort_columns = ["source", "date"] if "source" in sample_df.columns else ["date"]
+        sample_df = sample_df.sort_values(sort_columns).reset_index(drop=True)
         sample_df["date"] = sample_df["date"].dt.strftime("%Y-%m-%d")
     else:
         sample_df = sample_df.reset_index(drop=True)
+    sample_df["validation_id"] = range(1, len(sample_df) + 1)
 
     return sample_df
 
 
+def _source_balanced_sample(
+    df: pd.DataFrame,
+    *,
+    sources: list[str],
+    n: int,
+    seed: int,
+) -> pd.DataFrame:
+    if n <= 0 or not sources:
+        return pd.DataFrame(columns=df.columns)
+
+    base_n = n // len(sources)
+    remainder = n % len(sources)
+    samples = []
+
+    for offset, source in enumerate(sources):
+        source_df = df[df["source"] == source]
+        requested = base_n + (1 if offset < remainder else 0)
+        sample_size = min(len(source_df), requested)
+        if sample_size:
+            samples.append(source_df.sample(n=sample_size, random_state=seed + offset))
+
+    if not samples:
+        return pd.DataFrame(columns=df.columns)
+
+    sample_df = pd.concat(samples)
+    if len(sample_df) < n:
+        remaining = df.drop(sample_df.index)
+        topup_size = min(len(remaining), n - len(sample_df))
+        if topup_size:
+            sample_df = pd.concat([sample_df, remaining.sample(n=topup_size, random_state=seed + len(sources))])
+
+    return sample_df
+
+
+def _model_label_from_probabilities(df: pd.DataFrame) -> pd.Series:
+    label_columns = {
+        "negative": "roberta_prob_negative",
+        "neutral": "roberta_prob_neutral",
+        "positive": "roberta_prob_positive",
+    }
+    probabilities = df[list(label_columns.values())].apply(pd.to_numeric, errors="coerce")
+    inverse_labels = {column: label for label, column in label_columns.items()}
+    return probabilities.idxmax(axis=1).map(inverse_labels).fillna("")
+
+
 def table_roberta_extreme_sentiment(
     sentiment_records: pd.DataFrame,
-    top_n: int = 10,
+    top_n: int = 5,
 ) -> pd.DataFrame:
     """
     Identify the top N most positive and top N most negative texts for each source.
@@ -169,26 +204,32 @@ def table_roberta_extreme_sentiment(
     for source in sorted(df["source"].unique()):
         src_df = df[df["source"] == source]
 
-        # Top positive
         pos = src_df.nlargest(top_n, "roberta_sentiment_compound")
         for _, row in pos.iterrows():
             rows.append({
                 "source": source,
-                "sentiment_class": "Extreme Positive",
+                "extreme_group": "top_positive",
                 "date": row.get("date"),
+                "model_label": row.get("roberta_sentiment_label", ""),
                 "compound_score": row["roberta_sentiment_compound"],
-                "text": row.get("text_clean", ""),
+                "roberta_prob_negative": row.get("roberta_prob_negative", np.nan),
+                "roberta_prob_neutral": row.get("roberta_prob_neutral", np.nan),
+                "roberta_prob_positive": row.get("roberta_prob_positive", np.nan),
+                "text_clean": row.get("text_clean", ""),
             })
 
-        # Top negative
         neg = src_df.nsmallest(top_n, "roberta_sentiment_compound")
         for _, row in neg.iterrows():
             rows.append({
                 "source": source,
-                "sentiment_class": "Extreme Negative",
+                "extreme_group": "top_negative",
                 "date": row.get("date"),
+                "model_label": row.get("roberta_sentiment_label", ""),
                 "compound_score": row["roberta_sentiment_compound"],
-                "text": row.get("text_clean", ""),
+                "roberta_prob_negative": row.get("roberta_prob_negative", np.nan),
+                "roberta_prob_neutral": row.get("roberta_prob_neutral", np.nan),
+                "roberta_prob_positive": row.get("roberta_prob_positive", np.nan),
+                "text_clean": row.get("text_clean", ""),
             })
 
     return pd.DataFrame(rows)
@@ -321,4 +362,3 @@ def table_roberta_count_descriptives_shifted(
         rows.append(row)
 
     return pd.DataFrame(rows)
-

@@ -81,21 +81,39 @@ def table_26_correlation_matrix(df: pd.DataFrame, dependent_columns: list[str]) 
     corr.insert(0, "variable", corr.index)
     return corr.reset_index(drop=True)
 
-def table_27_baseline_regressions(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
+def table_27_baseline_regressions(
+    df: pd.DataFrame,
+    dependent_columns: list[str],
+    cov_type: str,
+    *,
+    maxlags: int = 5,
+) -> pd.DataFrame:
     regressors = [column for column in [EXPECTATION_ADJUSTED_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS if column in df.columns]
     sample = expectation_adjusted_sample(df, extra_columns=dependent_columns + regressors)
-    return _multi_dependent_regressions(sample, dependent_columns, regressors, "headline_contemporaneous", cov_type)
+    return _multi_dependent_regressions(sample, dependent_columns, regressors, "headline_contemporaneous", cov_type, maxlags=maxlags)
 
-def table_28_lagged_regressions(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
+def table_28_lagged_regressions(
+    df: pd.DataFrame,
+    dependent_columns: list[str],
+    cov_type: str,
+    *,
+    maxlags: int = 5,
+) -> pd.DataFrame:
     regressors = [
         column
         for column in [EXPECTATION_ADJUSTED_AIS, LAGGED_EXPECTATION_ADJUSTED_AIS] + CONNECTEDNESS_REGRESSION_CONTROLS
         if column in df.columns
     ]
     sample = expectation_adjusted_sample(df, include_lagged=True, extra_columns=dependent_columns + regressors)
-    return _multi_dependent_regressions(sample, dependent_columns, regressors, "robustness_lagged_sentiment", cov_type)
+    return _multi_dependent_regressions(sample, dependent_columns, regressors, "robustness_lagged_sentiment", cov_type, maxlags=maxlags)
 
-def table_29_raw_ais_regressions(df: pd.DataFrame, dependent_columns: list[str], cov_type: str) -> pd.DataFrame:
+def table_29_raw_ais_regressions(
+    df: pd.DataFrame,
+    dependent_columns: list[str],
+    cov_type: str,
+    *,
+    maxlags: int = 5,
+) -> pd.DataFrame:
     lagged = add_lagged_raw_ais(df)
     regressors = [
         column
@@ -109,6 +127,7 @@ def table_29_raw_ais_regressions(df: pd.DataFrame, dependent_columns: list[str],
         regressors,
         "robustness_raw_ais_contemporaneous_and_lagged",
         cov_type,
+        maxlags=maxlags,
     )
 
 
@@ -142,7 +161,7 @@ def table_30_five_lag_hac_regressions(
     for dependent in dependent_columns:
         fitted = _fit_ols(lagged, dependent, regressors, cov_type="HAC", maxlags=maxlags)
         if fitted is None:
-            rows.append(_skipped_regression_row("robustness_eais_t_to_t_minus_5", dependent, lagged))
+            rows.append(_skipped_regression_row("robustness_eais_t_to_t_minus_5", dependent, lagged, maxlags=maxlags))
             continue
         for term in fitted.params.index:
             rows.append(
@@ -288,17 +307,35 @@ def _multi_dependent_regressions(
     regressors: list[str],
     specification_prefix: str,
     cov_type: str,
+    *,
+    maxlags: int = 5,
 ) -> pd.DataFrame:
     rows = []
+    cov_kwds = _covariance_keywords(cov_type, maxlags)
+    covariance_label = _covariance_label(cov_type, maxlags)
     for dependent in dependent_columns:
         table = regression_table(
             df,
             dependent=dependent,
             specifications={f"{specification_prefix}_{dependent}": regressors},
             cov_type=cov_type,
+            cov_kwds=cov_kwds,
+            covariance_label=covariance_label,
         )
         rows.append(table)
     return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+
+
+def _covariance_keywords(cov_type: str, maxlags: int) -> dict[str, int] | None:
+    if cov_type.upper() == "HAC":
+        return {"maxlags": maxlags}
+    return None
+
+
+def _covariance_label(cov_type: str, maxlags: int) -> str:
+    if cov_type.upper() == "HAC":
+        return f"HAC(maxlags={maxlags})"
+    return cov_type
 
 
 def _fit_ols(
@@ -313,7 +350,7 @@ def _fit_ols(
     if len(model_data) <= len(regressors) + 2:
         return None
     x = sm.add_constant(model_data[regressors], has_constant="add")
-    if cov_type == "HAC":
+    if cov_type.upper() == "HAC":
         return sm.OLS(model_data[dependent], x).fit(cov_type="HAC", cov_kwds={"maxlags": maxlags})
     return sm.OLS(model_data[dependent], x).fit(cov_type=cov_type)
 
@@ -361,7 +398,7 @@ def _eais_effect_tests(fitted, dependent: str, eais_terms: list[str], maxlags: i
     ]
 
 
-def _skipped_regression_row(specification: str, dependent: str, df: pd.DataFrame) -> dict[str, object]:
+def _skipped_regression_row(specification: str, dependent: str, df: pd.DataFrame, *, maxlags: int) -> dict[str, object]:
     return {
         "specification": specification,
         "dependent_variable": dependent,
@@ -372,6 +409,6 @@ def _skipped_regression_row(specification: str, dependent: str, df: pd.DataFrame
         "r_squared": np.nan,
         "adjusted_r_squared": np.nan,
         "nobs": len(df),
-        "covariance_type": "HAC(maxlags=5)",
+        "covariance_type": f"HAC(maxlags={maxlags})",
         "note": "Skipped: insufficient complete observations",
     }

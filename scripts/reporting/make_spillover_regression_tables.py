@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fallback-connectedness-csv", type=Path, default=DEFAULT_FALLBACK_CONNECTEDNESS_CSV)
     parser.add_argument("--time-series-csv", type=Path, default=DEFAULT_TIME_SERIES_CSV)
     parser.add_argument("--dependent-columns", nargs="*", default=None)
-    parser.add_argument("--cov-type", default="HC3")
+    parser.add_argument("--cov-type", default="HAC")
     parser.add_argument("--hac-maxlags", type=int, default=5)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()
@@ -67,9 +67,9 @@ def main() -> None:
     if not dependent_columns:
         raise ValueError("No dependent connectedness variables found. Pass --dependent-columns explicitly.")
 
-    baseline = table_27_baseline_regressions(dataset, dependent_columns, args.cov_type)
-    lagged = table_28_lagged_regressions(dataset, dependent_columns, args.cov_type)
-    raw_ais = table_29_raw_ais_regressions(dataset, dependent_columns, args.cov_type)
+    baseline = table_27_baseline_regressions(dataset, dependent_columns, args.cov_type, maxlags=args.hac_maxlags)
+    lagged = table_28_lagged_regressions(dataset, dependent_columns, args.cov_type, maxlags=args.hac_maxlags)
+    raw_ais = table_29_raw_ais_regressions(dataset, dependent_columns, args.cov_type, maxlags=args.hac_maxlags)
     five_lag_hac = table_30_five_lag_hac_regressions(
         dataset,
         dependent_columns,

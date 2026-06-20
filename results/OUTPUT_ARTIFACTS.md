@@ -16,6 +16,6 @@ Generated outputs belong here. These folders are ignored by Git by default, exce
   original-system-only regression dataset.
 - `figures/tvpvar_connectedness/`: connectedness time series plus individual,
   paired, and original-versus-EAIS network figures.
-- `tables/spillover_regressions/`: joint contemporaneous-and-lagged raw-AIS HC3
-  results, one-lag EAIS HC3 results, five-lag HAC results, cumulative and joint
-  EAIS tests, and regression diagnostics.
+- `tables/spillover_regressions/`: Newey-West HAC connectedness-regression
+  results, one-lag EAIS results, five-lag EAIS robustness results, cumulative
+  and joint EAIS tests, and regression diagnostics.
