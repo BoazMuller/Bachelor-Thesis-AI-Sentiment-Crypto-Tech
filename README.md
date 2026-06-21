@@ -2,8 +2,7 @@
 
 This repository contains the Python and R workflow for the thesis empirical
 analysis. It is organized to keep source code, raw data, processed data,
-analysis notebooks, model outputs, thesis tables, and manuscript files separate
-and reproducible.
+analysis notebooks, model outputs, and thesis tables separate and reproducible.
 
 ## Project Structure
 
@@ -18,8 +17,8 @@ and reproducible.
 │   ├── external/         # Third-party reference data
 │   ├── interim/          # Intermediate transformed data
 │   └── processed/        # Final datasets used for analysis
-├── docs/                 # Notes, literature summaries, planning
 ├── notebooks/            # Exploratory notebooks
+├── r/                    # R setup and R model workflows
 ├── references/           # Bibliography files and citation notes
 ├── results/              # Generated figures, tables, reports, models
 ├── scripts/              # Lifecycle command-line entry points
@@ -29,8 +28,7 @@ and reproducible.
 │   ├── validation/       # Data and model-readiness checks
 │   ├── modeling/         # Python model runs
 │   └── reporting/        # Tables and figures
-├── r/                    # R setup and R model workflows
-└── thesis/               # Thesis manuscript files
+└── environment.yml       # Conda environment alternative to requirements.txt
 ```
 
 ## Supporting Documentation
@@ -40,7 +38,41 @@ and reproducible.
 - `r/R_MODEL_WORKFLOW.md`: R dependency setup and volatility/connectedness model commands.
 - `results/OUTPUT_ARTIFACTS.md`: generated output directory conventions.
 - `notebooks/EXPLORATORY_NOTEBOOKS.md`: notebook usage conventions.
-- `thesis/MANUSCRIPT_WORKFLOW.md`: manuscript directory conventions.
+
+## Data Availability
+
+This project uses public data sources only. Raw, interim, and processed data
+files are not committed to the repository because some inputs are large,
+credential-dependent, or better obtained directly from the original public
+source. The expected file locations and processing steps are documented in
+`data/DATA_SOURCES_AND_PROCESSING.md`.
+
+The manually labeled dataset used for validation or inspection is not included
+in the repository. It can be obtained from the author on request, or recreated
+by users from the public source data using the documented collection and
+filtering workflow.
+
+## What Users Need To Adjust
+
+Before running the workflow on another machine, users should review and adjust:
+
+1. Raw data placement: put public-source inputs in the paths listed under
+   "Place Or Collect Raw Inputs" below.
+2. Google Cloud settings: replace `YOUR_PROJECT_ID` and authenticate BigQuery
+   before collecting GDELT headlines.
+3. Reddit input files: provide Pushshift monthly submission dumps under
+   `data/raw/reddit/submissions/`.
+4. External public files: download or export the EPU, GPR, Kalshi, and
+   Metaculus files using the filenames expected by the scripts.
+5. Study window choices: update date ranges in the collection and preparation
+   scripts if extending or changing the sample period.
+6. Source and keyword choices: review the subreddit list and AI keyword filter
+   if applying the workflow to a different topic or scope.
+7. Model specifications: treat EGARCH, ARMAX-EGARCHX, TVP-VAR horizons, HAC
+   lag choices, and sentiment lag choices as research decisions that should be
+   justified if changed.
+8. Local environments: use Python 3.10+ and restore the R environment before
+   running the model stages.
 
 ## Full Replication Workflow
 
@@ -48,6 +80,9 @@ Run commands from the project root. The collection and RoBERTa steps can be
 expensive, so rerun them only when the corresponding raw inputs change.
 
 ### 1. Create The Python Environment
+
+Use Python 3.10 or newer. The Conda environment in `environment.yml` uses
+Python 3.11.
 
 ```bash
 python3 -m venv .venv
@@ -76,6 +111,10 @@ Expected external files:
 - `data/raw/metaculus/Metaculus_question_data.csv`
 - `data/raw/metaculus/Metaculus_forecast_data.csv`
 - Pushshift monthly Reddit submission dumps under `data/raw/reddit/submissions/`
+
+These raw files are intentionally not committed. Scripts that depend on them
+expect the paths above and will stop with a file-not-found error if the inputs
+have not been placed or collected first.
 
 Collect GDELT headlines with Google Cloud BigQuery credentials:
 
@@ -212,19 +251,7 @@ python scripts/validation/check_time_series_data.py
 pytest
 ```
 
-## Recommended Workflow
+## License
 
-1. Put untouched source data in `data/raw/`.
-2. Put reusable logic in `code/src/thesis/` and thin workflow entry points in `scripts/`.
-3. Save cleaned analysis-ready datasets in `data/processed/`.
-4. Use notebooks for exploration, not as the only place where important transformations live.
-5. Save generated figures and tables to `results/figures/` and `results/tables/`.
-6. Keep manuscript text in `thesis/`.
-
-## Reproducibility Notes
-
-- Large or sensitive datasets should stay out of Git.
-- Document every raw data source in `data/DATA_SOURCES_AND_PROCESSING.md`.
-- Prefer scripted pipelines over manual spreadsheet edits.
-- Record package versions in `requirements.txt` or `environment.yml`.
-- Use fixed random seeds for simulations, train/test splits, bootstraps, and model estimation where appropriate.
+The code and documentation in this repository are released under the MIT
+License. Data remain subject to the terms of their original public sources.

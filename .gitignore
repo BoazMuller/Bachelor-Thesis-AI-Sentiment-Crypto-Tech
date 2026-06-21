@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -16,8 +17,10 @@ htmlcov/
 venv/
 env/
 
-#IDE 
+# IDE
 AGENTS.md
+.env
+.env.*
 
 # Jupyter
 .ipynb_checkpoints/
@@ -36,7 +39,7 @@ data/processed/*
 !data/**/.gitkeep
 !data/README.md
 
-#Thesis
+# Thesis
 thesis/
 
 # Generated outputs
@@ -44,6 +47,7 @@ results/figures/*
 results/tables/*
 results/models/*
 results/reports/*
+results/tmp_mpl/
 !results/**/.gitkeep
 !results/README.md
 
@@ -66,3 +70,9 @@ tmp/
 *.run.xml
 *.synctex.gz
 *.toc
+
+# R local state
+.RData
+.Rhistory
+.Renviron
+.Rproj.user/

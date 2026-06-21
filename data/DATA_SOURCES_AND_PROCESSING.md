@@ -7,8 +7,25 @@ write code that reads from `data/raw/` and writes to `data/interim/` or
 ## Folders
 
 - `raw/`: Original data exactly as received or downloaded.
+- `external/`: Third-party reference files used as inputs when needed.
 - `interim/`: Intermediate outputs from cleaning and merging.
 - `processed/`: Final analysis-ready datasets.
+
+## Data Availability
+
+All data sources used by this project are public. Raw, interim, and processed
+data files are not committed because some inputs are large, credential-dependent,
+or should be obtained directly from their original public source.
+
+The manually labeled dataset used for validation or inspection is not included
+in the repository. It can be obtained from the author on request, or recreated
+by users from the public source data using the collection, filtering, and
+processing steps documented here.
+
+Users reproducing the workflow should expect to provide or regenerate the raw
+files listed below, authenticate Google BigQuery for GDELT collection, and
+review date ranges, source filters, keyword filters, and model specifications
+before applying the code to a different sample or research question.
 
 ## Sources And Files
 

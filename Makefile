@@ -1,4 +1,4 @@
-.PHONY: setup test notebook clean
+.PHONY: setup notebook clean
 
 setup:
 	python3 -m venv .venv
@@ -12,4 +12,3 @@ notebook:
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -prune -exec rm -rf {} +
-
