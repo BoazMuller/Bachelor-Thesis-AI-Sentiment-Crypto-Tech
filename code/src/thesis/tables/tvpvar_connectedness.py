@@ -200,9 +200,10 @@ def tvpvar_lag_selection(
     volatility_panel: pd.DataFrame,
     *,
     maxlags: int = 10,
+    systems: dict[str, TvpvarSystem] | None = None,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
-    for system in TVPVAR_SYSTEMS.values():
+    for system in (TVPVAR_SYSTEMS if systems is None else systems).values():
         missing = [column for column in system.columns if column not in volatility_panel.columns]
         if missing:
             rows.append(

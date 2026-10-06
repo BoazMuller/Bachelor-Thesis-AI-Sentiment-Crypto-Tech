@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
-from thesis.modeling.diagnostics import arch_lm_tests, autocorrelation_tests, stationarity_tests
+from thesis.modeling.diagnostics import arch_lm_tests, autocorrelation_tests, stationarity_tests, one_lag_granger_test
 from thesis.paths import FIGURES_DIR
 from thesis.tables.common import (
     DATE_COLUMN,
@@ -101,14 +101,13 @@ def table_03_pre_estimation_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     # 4. Granger Causality Tests (1-lag check)
-    from statsmodels.tsa.stattools import grangercausalitytests
     for sentiment_col in sentiment_columns:
         for return_col in [column for column in RETURN_COLUMNS if column in df.columns]:
             data = df[[return_col, sentiment_col]].dropna()
             if len(data) > 10:
                 try:
-                    res = grangercausalitytests(data, maxlag=[1], verbose=False)
-                    f_stat, p_value, _, _ = res[1][0]["ssr_ftest"]
+                    test = one_lag_granger_test(df, return_col, sentiment_col)
+                    f_stat, p_value = test["statistic"], test["p_value"]
                     interpretation = (
                         "Rejects no causality at 5%"
                         if p_value < 0.05

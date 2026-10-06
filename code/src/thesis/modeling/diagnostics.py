@@ -8,9 +8,29 @@ import numpy as np
 import pandas as pd
 from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
 from statsmodels.tsa.api import VAR
-from statsmodels.tsa.stattools import adfuller, kpss
+from statsmodels.tsa.stattools import adfuller, kpss, grangercausalitytests
 
 RETURN_SUFFIX = "_log_return"
+
+def one_lag_granger_test(data: pd.DataFrame, dependent: str, predictor: str) -> dict[str, float]:
+    """Bivariate one-lag SSR F test, matching the thesis return diagnostic.
+
+    Complete cases must form a contiguous trading-day sample; missing internal
+    observations are rejected rather than silently turned into adjacent lags.
+    """
+    pair = data[[dependent, predictor]].apply(pd.to_numeric, errors="raise")
+    valid = pair.notna().all(axis=1).to_numpy()
+    positions = np.flatnonzero(valid)
+    if len(positions) < 11 or np.any(np.diff(positions) != 1):
+        raise ValueError("Granger test needs at least 11 contiguous complete observations")
+    pair = pair.iloc[positions]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        result = grangercausalitytests(pair, maxlag=[1], verbose=False)
+    f_stat, p_value, df_denom, df_num = result[1][0]["ssr_ftest"]
+    return {"statistic": float(f_stat), "p_value": float(p_value),
+            "nobs": len(pair) - 1, "input_nobs": len(pair),
+            "df_denom": float(df_denom), "df_num": float(df_num)}
 
 def read_time_series(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)

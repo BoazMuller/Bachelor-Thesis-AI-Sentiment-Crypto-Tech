@@ -4,7 +4,7 @@ if ("--help" %in% args || "-h" %in% args) {
   cat(
     paste(
       "Usage:",
-      "Rscript r/modeling/run_egarch_volatility.R [input_csv] [output_dir]",
+      "Rscript r/modeling/run_egarch_volatility.R [input_csv] [output_dir] [assets_csv]",
       "",
       "Fits plain EGARCH(1,1) models with constant mean, no ARMA terms,",
       "no sentiment regressors, and Student-t innovations. Outputs a",
@@ -41,6 +41,10 @@ asset_specs <- c(
   googl = "googl_adj_close_log_return",
   msft = "msft_adj_close_log_return"
 )
+if (length(args) >= 3) {
+  assets <- trimws(strsplit(args[[3]], ",", fixed = TRUE)[[1]])
+  asset_specs <- stats::setNames(paste0(assets, "_adj_close_log_return"), assets)
+}
 
 fit_plain_egarch <- function(series) {
   spec <- rugarch::ugarchspec(

@@ -84,6 +84,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--start-date", default=START_DATE)
     parser.add_argument("--end-date", default=END_DATE)
+    parser.add_argument("--tickers", nargs="+", help="Optional equity tickers; download adjusted closes instead of the default panel.")
     parser.add_argument(
         "--output-csv",
         type=Path,
@@ -247,6 +248,15 @@ def write_outputs(prices: pd.DataFrame, output_csv: Path, metadata_json: Path) -
 
 def main() -> None:
     args = parse_args()
+    if args.tickers:
+        SERIES_SPECS.clear()
+        SERIES_SPECS.update({
+            f"{ticker.lower()}_adj_close": {
+                "ticker": ticker.upper(), "field": "Adj Close",
+                "description": f"{ticker.upper()} adjusted close",
+            }
+            for ticker in args.tickers
+        })
     start, end = validate_date_range(args.start_date, args.end_date)
     output_csv = args.output_csv.resolve()
     metadata_json = metadata_path_for(output_csv, args.metadata_json).resolve()
