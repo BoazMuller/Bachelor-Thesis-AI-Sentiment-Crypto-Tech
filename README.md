@@ -1,8 +1,11 @@
-# Thesis Replication Workflow
+# Speculative AI Sentiment and Cross-Market Volatility Connectedness: Evidence from Bitcoin and AI-Exposed Equities
 
 This repository contains the Python and R workflow for the thesis empirical
 analysis. It is organized to keep source code, raw data, processed data,
 analysis notebooks, model outputs, and thesis tables separate and reproducible.
+
+## Abstract
+This thesis examines whether expectation-adjusted AI sentiment is associated with volatility transmission between Bitcoin and technology-related equity markets. Using daily data from April 2024 to March 2026, AI sentiment is constructed from Reddit posts and GDELT news headlines with a RoBERTa-based classifier and combined through a dynamic factor model. To proxy the speculative component of AI sentiment, the raw index is residualized on prediction-market expectations and macro-financial controls. The study applies ARMA-EGARCH models to test direct return and volatility effects, and TVP-VAR connectedness measures to analyze volatility spillovers between Bitcoin, the NASDAQ-100, and AI-exposed firms including NVIDIA, Alphabet, and Microsoft. The results show that expectation-adjusted AI sentiment significantly predicts next-day Bitcoin returns, but not NASDAQ-100 returns or conditional volatility. Connectedness analysis further shows that AI sentiment is positively associated with firm-level spillovers between Bitcoin and AI-exposed equities, while the relation with broad Bitcoin--NASDAQ-100 connectedness is weakly negative. Overall, the findings suggest that AI sentiment acts less as a broad market-wide optimism factor and more as a temporary risk channel that may weaken diversification benefits between Bitcoin and AI-related equities.
 
 ## Project Structure
 
@@ -255,3 +258,5 @@ pytest
 
 The code and documentation in this repository are released under the MIT
 License. Data remain subject to the terms of their original public sources.
+
+
